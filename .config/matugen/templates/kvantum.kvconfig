@@ -1,0 +1,56 @@
+[General]
+theme=Matugen
+# Разрешаем Kvantum применять эффекты прозрачности/размытия hyprglass
+opaque_is_tinted=true
+# Убираем старые рамки и лишние разделители между виджетами
+no_frame_lines=true
+flat_menus=true
+
+[Compositing]
+# Интеграция с размытием из композитора Hyprland
+blur_ring=true
+reduce_opacity=0
+
+[Palette]
+# --- Основные фоны приложений (AMOLED) ---
+Window.color=#040405
+Base.color=#040405
+AlternateBase.color=#0b0c10
+Sidebar.color=#040405
+Header.color=#0b0c10
+
+# --- Цвета текста ---
+WindowText.color=#e2e2e9
+Text.color=#e2e2e9
+ButtonText.color=#ffffff
+BrightText.color=#ffffff
+SidebarText.color=#e2e2e9
+HeaderText.color=#e2e2e9
+
+# --- Элементы управления (Кнопки, вкладки) ---
+Button.color=#121318
+Light.color=#1e1f25
+Midlight.color=#121318
+Dark.color=#000000
+Shadow.color=#000000
+# Смягчаем фокус ввода, чтобы он не светился синим в Chrome
+Focus.color=#33353a
+
+# --- Исправление синих рамок и выделений (Замена на строгий AMOLED-серый) ---
+# Теперь Chrome и контекстные меню будут использовать благородный темно-серый цвет вместо синего
+Highlight.color=#1e1f25
+HighlightedText.color=#ffffff
+Link.color=#adc6ff
+LinkVis.color=#bfc6dc
+
+# --- Неактивные элементы ---
+Disabled.WindowText.color=#5d5e66
+Disabled.Text.color=#5d5e66
+Disabled.ButtonText.color=#44454b
+Disabled.Button.color=#0b0c10
+Disabled.Highlight.color=#121318
+Disabled.HighlightedText.color=#5d5e66
+
+# --- Подсветка всплывающих подсказок ---
+ToolTipBase.color=#121318
+ToolTipText.color=#e2e2e9

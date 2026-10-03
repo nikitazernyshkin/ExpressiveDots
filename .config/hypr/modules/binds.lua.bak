@@ -1,0 +1,143 @@
+-- Исправленный жест (параметры перенесены внутрь hl.gesture)
+hl.gesture({
+    fingers                 = 3,
+    direction               = "horizontal",
+    action                  = "workspace",
+    workspace_swipe         = true,
+    workspace_swipe_fingers = 3
+})
+
+-- Системные бинды и запуск приложений
+hl.bind(mainMod .. "+K",       hl.dsp.exec_cmd(terminal))
+hl.bind(mainMod .. "+E",       hl.dsp.exec_cmd(fileManager))
+hl.bind(mainMod .. "+SPACE",   hl.dsp.exec_cmd(menu))
+hl.bind(mainMod .. "+V",       hl.dsp.exec_cmd(home .. ".config/hypr/top/scripts/clipboard.sh"))
+hl.bind(mainMod .. "+L",       hl.dsp.exec_cmd("quickshell ipc call lockscreen lock"))
+hl.bind(mainMod .. "+SHIFT+R", hl.dsp.exec_cmd("~/.config/hypr/scripts/reload.lua"))
+hl.bind(mainMod .. "+SHIFT+C", hl.dsp.exec_cmd("hyprpicker"))
+hl.bind(mainMod .. "+SHIFT+S", hl.dsp.exec_cmd("hyprcapture-ui"))
+hl.bind("Print",               hl.dsp.exec_cmd("hyprcapture-ui"))
+
+-- Управление поведением окон
+hl.bind(mainMod .. "+C",       hl.dsp.window.close())
+hl.bind(mainMod .. "+M",       hl.dsp.exit())
+hl.bind(mainMod .. "+SHIFT+F", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. "+F",       hl.dsp.window.fullscreen({ mode = 0 }))
+hl.bind(mainMod .. "+SHIFT+M", hl.dsp.window.fullscreen({ mode = 1 }), { description = "Maximize window" })
+hl.bind(mainMod .. "+Y",       hl.dsp.window.pin({ action = "toggle" }), { description = "Pin floating window" })
+
+-- Навигация в лейауте Scrolling
+hl.bind(mainMod .. "+LEFT",        hl.dsp.layout("focus l"))
+hl.bind(mainMod .. "+RIGHT",       hl.dsp.layout("focus r"))
+hl.bind(mainMod .. "+UP",          hl.dsp.layout("focus u"))
+hl.bind(mainMod .. "+DOWN",        hl.dsp.layout("focus d"))
+hl.bind(mainMod .. "+SHIFT+LEFT",  hl.dsp.layout("swapcol l"))
+hl.bind(mainMod .. "+SHIFT+RIGHT", hl.dsp.layout("swapcol r"))
+hl.bind(mainMod .. "+EQUAL",       hl.dsp.layout("colresize +conf"))
+hl.bind(mainMod .. "+MINUS",       hl.dsp.layout("colresize -conf"))
+hl.bind(mainMod .. "+H",           hl.dsp.layout("fit expand"))
+hl.bind(mainMod .. "+SHIFT+H",     hl.dsp.layout("fit all"))
+hl.bind(mainMod .. "+P",           hl.dsp.layout("promote"))
+
+hl.bind(mainMod .. "+SHIFT+N", hl.dsp.exec_cmd("hyprctl keyword decoration:screen_shader ~/.config/hypr/shaders/NightLight.frag"))
+hl.bind(mainMod .. "+CONTROL+N", hl.dsp.exec_cmd("hyprctl keyword decoration:screen_shader 'none'"))
+
+-- Группировка окон
+hl.bind(mainMod .. "+G",           hl.dsp.group.toggle(), { description = "Toggle window group" })
+hl.bind(mainMod .. "+TAB",         hl.dsp.group.next(),   { description = "Next window in group" })
+hl.bind(mainMod .. "+SHIFT+TAB",   hl.dsp.group.prev(),   { description = "Previous window in group" })
+hl.bind(mainMod .. "+SHIFT+G",     hl.dsp.group.lock({ action = "toggle" }), { description = "Lock group" })
+hl.bind(mainMod .. "+CONTROL+E",   hl.dsp.window.move({ out_of_group = true }), { description = "Take out of group" })
+hl.bind(mainMod .. "+CONTROL+LEFT",  hl.dsp.window.move({ into_or_create_group = "l" }))
+hl.bind(mainMod .. "+CONTROL+RIGHT", hl.dsp.window.move({ into_or_create_group = "r" }))
+hl.bind(mainMod .. "+CONTROL+UP",    hl.dsp.window.move({ into_or_create_group = "u" }))
+hl.bind(mainMod .. "+CONTROL+DOWN",  hl.dsp.window.move({ into_or_create_group = "d" }))
+
+-- =========================================================================
+--  ФИКСИРОВАННЫЕ РАБОЧИЕ ПРОСТРАНСТВА (БЕЗ ЦИКЛОВ)
+-- =========================================================================
+
+-- Основные воркспейсы (Цифры 1 - 0)
+hl.bind(mainMod .. "+1", hl.dsp.focus({ workspace = 1 }))
+hl.bind(mainMod .. "+SHIFT+1", hl.dsp.window.move({ workspace = 1 }))
+hl.bind(mainMod .. "+2", hl.dsp.focus({ workspace = 2 }))
+hl.bind(mainMod .. "+3", hl.dsp.focus({ workspace = 3 }))
+hl.bind(mainMod .. "+4", hl.dsp.focus({ workspace = 4 }))
+hl.bind(mainMod .. "+5", hl.dsp.focus({ workspace = 5 }))
+hl.bind(mainMod .. "+6", hl.dsp.focus({ workspace = 6 }))
+hl.bind(mainMod .. "+7", hl.dsp.focus({ workspace = 7 }))
+hl.bind(mainMod .. "+8", hl.dsp.focus({ workspace = 8 }))
+hl.bind(mainMod .. "+9", hl.dsp.focus({ workspace = 9 }))
+hl.bind(mainMod .. "+0", hl.dsp.focus({ workspace = 10 }))
+
+hl.bind(mainMod .. "+SHIFT+2", hl.dsp.window.move({ workspace = 2 }))
+hl.bind(mainMod .. "+SHIFT+3", hl.dsp.window.move({ workspace = 3 }))
+hl.bind(mainMod .. "+SHIFT+4", hl.dsp.window.move({ workspace = 4 }))
+hl.bind(mainMod .. "+SHIFT+5", hl.dsp.window.move({ workspace = 5 }))
+hl.bind(mainMod .. "+SHIFT+6", hl.dsp.window.move({ workspace = 6 }))
+hl.bind(mainMod .. "+SHIFT+7", hl.dsp.window.move({ workspace = 7 }))
+hl.bind(mainMod .. "+SHIFT+8", hl.dsp.window.move({ workspace = 8 }))
+hl.bind(mainMod .. "+SHIFT+9", hl.dsp.window.move({ workspace = 9 }))
+hl.bind(mainMod .. "+SHIFT+0", hl.dsp.window.move({ workspace = 10 }))
+
+-- Дополнительные воркспейсы (Клавиши F1 - F10)
+hl.bind(mainMod .. "+F1", hl.dsp.focus({ workspace = "11" }))
+hl.bind(mainMod .. "+F2", hl.dsp.focus({ workspace = "12" }))
+hl.bind(mainMod .. "+F3", hl.dsp.focus({ workspace = "13" }))
+hl.bind(mainMod .. "+F4", hl.dsp.focus({ workspace = "14" }))
+hl.bind(mainMod .. "+F5", hl.dsp.focus({ workspace = "15" }))
+hl.bind(mainMod .. "+F6", hl.dsp.focus({ workspace = "16" }))
+hl.bind(mainMod .. "+F7", hl.dsp.focus({ workspace = "17" }))
+hl.bind(mainMod .. "+F8", hl.dsp.focus({ workspace = "18" }))
+hl.bind(mainMod .. "+F9", hl.dsp.focus({ workspace = "19" }))
+hl.bind(mainMod .. "+F10", hl.dsp.focus({ workspace = "20" }))
+
+hl.bind(mainMod .. "+SHIFT+F1", hl.dsp.window.move({ workspace = "11" }))
+hl.bind(mainMod .. "+SHIFT+F2", hl.dsp.window.move({ workspace = "12" }))
+hl.bind(mainMod .. "+SHIFT+F3", hl.dsp.window.move({ workspace = "13" }))
+hl.bind(mainMod .. "+SHIFT+F4", hl.dsp.window.move({ workspace = "14" }))
+hl.bind(mainMod .. "+SHIFT+F5", hl.dsp.window.move({ workspace = "15" }))
+hl.bind(mainMod .. "+SHIFT+F6", hl.dsp.window.move({ workspace = "16" }))
+hl.bind(mainMod .. "+SHIFT+F7", hl.dsp.window.move({ workspace = "17" }))
+hl.bind(mainMod .. "+SHIFT+F8", hl.dsp.window.move({ workspace = "18" }))
+hl.bind(mainMod .. "+SHIFT+F9", hl.dsp.window.move({ workspace = "19" }))
+hl.bind(mainMod .. "+SHIFT+F10", hl.dsp.window.move({ workspace = "20" }))
+
+-- Специальное рабочее пространство (Схлопывание)
+hl.bind(mainMod .. "+grave",       hl.dsp.workspace.toggle_special("magic"), { description = "Toggle special workspace" })
+hl.bind(mainMod .. "+SHIFT+grave", hl.dsp.window.move({ workspace = "special:magic" }), { description = "Minimize to special" })
+
+-- Мультимедийные клавиши
+hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { repeating = true, locked = true })
+hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { repeating = true, locked = true })
+hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
+hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl set 5%+"), { repeating = true, locked = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), { repeating = true, locked = true })
+
+-- Навигация мышью
+hl.bind(mainMod .. "+mouse:272", hl.dsp.window.drag(),   { mouse = true })
+hl.bind(mainMod .. "+mouse:273", hl.dsp.window.resize(), { mouse = true })
+
+hl.bind("ALT + TAB", function()
+    hl.plugin.scrolloverview.overview("toggle all")
+end)
+
+-- Переключатель лэйаутов (scrolling <-> dwindle)
+local function toggle_layout()
+    -- Получаем текущие настройки генеральной секции
+    local current_layout = hl.get_config("general.layout")
+    
+    if current_layout == "scrolling" then
+        -- Если сейчас scrolling, включаем dwindle (или master)
+        hl.config({ general = { layout = "dwindle" } })
+        hl.exec_cmd("notify-send 'Hyprland' 'Лэйаут изменен на Dwindle' -i input-window")
+    else
+        -- Возвращаем обратно твой scrolling
+        hl.config({ general = { layout = "scrolling" } })
+        hl.exec_cmd("notify-send 'Hyprland' 'Лэйаут изменен на Scrolling' -i input-window")
+    end
+end
+
+-- Привязываем функцию к комбинации SUPER + SHIFT + L
+hl.bind(mainMod .. "+SHIFT+L", toggle_layout, { description = "Переключить лэйаут окон" })

@@ -1,0 +1,376 @@
+-- ==========================================
+-- 1. БАЗОВЫЕ НАСТРОЙКИ И СИСТЕМНЫЙ БУФЕР ОБМЕНА
+-- ==========================================
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
+local opt = vim.opt
+opt.number = true
+opt.relativenumber = true
+opt.incsearch = true
+opt.hlsearch = true
+opt.mouse = "a"
+opt.ignorecase = true
+opt.smartcase = true
+opt.hlsearch = false
+opt.wrap = false
+opt.termguicolors = true
+opt.signcolumn = "yes"
+opt.scrolloff = 8
+opt.tabstop = 4
+opt.shiftwidth = 4
+opt.expandtab = true
+opt.cursorline = true
+opt.clipboard = "unnamedplus"
+
+local keymap = vim.keymap.set
+keymap("n", "<leader>w", ":w<CR>", { desc = "Сохранить" })
+keymap("n", "<leader>q", ":q<CR>", { desc = "Выйти" })
+keymap("n", "<S-l>", ":bnext<CR>", { desc = "Следующий буфер" })
+keymap("n", "<S-h>", ":bprevious<CR>", { desc = "Предыдущий буфер" })
+keymap("n", "<leader>x", ":bdelete<CR>", { desc = "Закрыть буфер" })
+keymap("i", "jj", "<Esc>", { desc = "Выйти из режима вставки" })
+
+-- ==========================================
+-- 2. УСТАНОВКА LAZY.NVIM
+-- ==========================================
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+vim.opt.rtp:prepend(lazypath)
+
+-- ==========================================
+-- 3. ПЛАГИНЫ И МАТЕРИАЛЬНЫЙ ДИЗАЙН (EXPRESSIVE)
+-- ==========================================
+require("lazy").setup({
+
+{
+  'windwp/nvim-autopairs',
+  event = "InsertEnter",
+  config = true
+},
+
+  {
+    "mfussenegger/nvim-jdtls",
+    ft = { "java" },
+    dependencies = { "williamboman/mason.nvim" },
+    -- Запуск jdtls требует специфичного подхода (через автокоманду ftplugin), 
+    -- поэтому в mason-lspconfig его автоматически не стартуют. 
+    -- Для Java этот плагин — безальтернативный стандарт.
+  } ,
+
+  -- 2. Протокол отладки (DAP) — замена встроенного дебаггера Android Studio
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      -- Красивый UI для дебага (Переменные, стек вызовов, точки останова как в IDE)
+      { "rcarriga/nvim-dap-ui", dependencies = { "nvim-neotest/nvim-nio" } },
+    },
+    config = function()
+      local dap = require("dap")
+      local dapui = require("dapui")
+
+      dapui.setup()
+
+      -- Автоматически открывать/закрывать UI дебаггера
+      dap.listeners.before.attach.dapui_config = function() dapui.open() end
+      dap.listeners.before.event_terminated.dapui_config = function() dapui.close() end
+      dap.listeners.before.event_exited.dapui_config = function() dapui.close() end
+
+      -- Горячие клавиши для отладки
+      vim.keymap.set("n", "<F5>", dap.continue, { desc = "Дебаг: Старт / Продолжить" })
+      vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Дебаг: Шаг обойти" })
+      vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Дебаг: Шаг внутрь" })
+      vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Дебаг: Шаг наружу" })
+      vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "Дебаг: Точка останова" })
+    end,
+  },
+
+  -- 3. Специализированный плагин для Android-разработки
+  -- Умеет запускать эмуляторы, собирать проект через gradle, деплоить APK и читать Logcat
+  {
+    "iamironz/android-nvim-plugin",
+    ft = { "kotlin", "java", "xml" },
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("android").setup({
+        -- Укажите путь к вашему Android SDK, если он отличается от стандартного
+        sdk_path = vim.fn.expand("~/Android/Sdk"), 
+      })
+
+      -- Клавиши для сборки и запуска
+      vim.keymap.set("n", "<leader>am", ":AndroidImageMenu<CR>", { desc = "Android: Меню эмуляторов" })
+      vim.keymap.set("n", "<leader>ar", ":AndroidProjectRun<CR>", { desc = "Android: Запустить проект" })
+      vim.keymap.set("n", "<leader>ab", ":AndroidProjectBuild<CR>", { desc = "Android: Собрать проект" })
+      vim.keymap.set("n", "<leader>al", ":AndroidLogcat<CR>", { desc = "Android: Открыть Logcat" })
+    end,
+  },
+
+  -- 4. Подсветка синтаксиса, структуры кода и XML макетов
+  -- Без этого Neovim не поймет синтаксис Kotlin-файлов и разметку Android-экранов
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate",
+    -- С помощью opts мы безопасно передаем настройки. 
+    -- Пакетный менеджер сам применит их после того, как скачает плагин.
+    opts = {
+      ensure_installed = { "kotlin", "java", "xml", "groovy", "html", "lua" },
+      highlight = { enable = true },
+    },
+  },
+  -- Загрузка динамических цветов от Matugen без хардкода
+  {
+    dir = vim.fn.stdpath("config"),
+    name = "matugen-theme",
+    lazy = false,
+    priority = 1000,
+    config = function()
+      local ok, colors = pcall(require, "config.colors")
+      if ok and colors then
+        vim.cmd(string.format("highlight Normal guibg=%s guifg=%s", colors.bg, colors.fg))
+        vim.cmd(string.format("highlight CursorLine guibg=%s", colors.surface_container))
+        vim.cmd(string.format("highlight Visual guibg=%s", colors.primary_container))
+      end
+    end,
+  },
+
+  -- Хлебные крошки (Breadcrumbs) вверху экрана
+  {
+    "Bekaboo/dropbar.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "nvim-tree/nvim-web-devicons",
+      "nvim-telescope/telescope-fzf-native.nvim", -- опционально для быстрого поиска по крошкам
+    },
+    config = function()
+      -- Динамически подтягиваем цвета вашего Matugen
+      local ok, c = pcall(require, "config.matugen_colors")
+      if ok and c then
+        vim.api.nvim_set_hl(0, "DropbarBackground", { bg = c.surface })
+      end
+      require("dropbar").setup()
+    end,
+  },
+
+  -- Файловое дерево
+  {
+    "nvim-neo-tree/neo-tree.nvim",
+    branch = "v3.x",
+    dependencies = { "nvim-lua/plenary.nvim", "nvim-tree/nvim-web-devicons", "MunifTanjim/nui.nvim" },
+    keys = {
+      { "<leader>e", ":Neotree toggle left filesystem<CR>", desc = "Файловое дерево" },
+      { "<leader>b", ":Neotree toggle left buffers<CR>", desc = "Вертикальные вкладки (буферы)" },
+    },
+    config = function()
+      require("neo-tree").setup({
+        source_selector = {
+          winbar = false,
+          statusline = false,
+        },
+        filesystem = {
+          hijack_netrw = true,
+        },
+        buffers = {
+          follow_current_file = { enabled = true }, -- Подсвечивать файл, в котором мы сейчас сидим
+        },
+      })
+    end
+  },
+
+  -- Поиск Telescope
+  {
+    "nvim-telescope/telescope.nvim",
+    tag = "0.1.8",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      local builtin = require("telescope.builtin")
+      vim.keymap.set("n", "<leader>ff", builtin.find_files, { desc = "Поиск файлов" })
+      vim.keymap.set("n", "<leader>fg", builtin.live_grep, { desc = "Поиск текста" })
+    end,
+  },
+
+  -- Статусная строка со скруглениями (Material 3 Expressive капсулы)
+  {
+    "nvim-lualine/lualine.nvim",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    config = function()
+      local ok, c = pcall(require, "config.colors")
+      -- Получаем системные fallback-цвета программно, если matugen не загрузился
+      local normal_bg = vim.fn.synIDattr(vim.fn.hlID("Normal"), "bg#")
+      local normal_fg = vim.fn.synIDattr(vim.fn.hlID("Normal"), "fg#")
+      local cursorline_bg = vim.fn.synIDattr(vim.fn.hlID("CursorLine"), "bg#")
+
+      -- Защита от пустых строк, если тема еще не инициализировала Normal
+      if normal_bg == "" then normal_bg = "none" end
+      if normal_fg == "" then normal_fg = "none" end
+      if cursorline_bg == "" then cursorline_bg = "none" end
+
+      local m_theme = {
+        normal = {
+          a = {
+            fg = ok and c.bg or normal_bg,
+            bg = ok and c.primary or normal_fg,
+            gui = "bold"
+          },
+          b = {
+            fg = ok and c.fg or normal_fg,
+            bg = ok and c.surface_container or cursorline_bg
+          },
+          c = {
+            fg = ok and c.fg or normal_fg,
+            bg = ok and c.surface or normal_bg
+          },
+        },
+      }
+
+      require("lualine").setup({
+        options = {
+          theme = m_theme,
+          component_separators = { left = "", right = "" },
+          section_separators = { left = "", right = "" }, -- Скругленные края капсул
+          globalstatus = true,
+        },
+        sections = {
+          lualine_a = { { "mode", separator = { left = "", right = "" } } },
+          lualine_b = { "branch", "diff", "diagnostics" },
+          lualine_c = { { "filename", path = 1 } },
+          lualine_x = { "encoding", "fileformat", "filetype" },
+          lualine_y = { "progress" },
+          lualine_z = { { "location", separator = { left = "", right = "" } } },
+        },
+      })
+    end,
+  },
+
+  -- Новое поколение автодополнения (красивое, быстрое, со скругленными меню)
+  {
+    "saghen/blink.cmp",
+    lazy = false,
+    dependencies = "rafamadriz/friendly-snippets",
+    version = "v0.*",
+    opts = {
+      keymap = { 
+        preset = "default",
+        ["<CR>"] = { "accept", "fallback" },
+      },
+      appearance = {
+        use_nvim_cmp_as_default = true,
+        nerd_font_variant = "mono"
+      },
+      completion = {
+        menu = { border = "rounded" },
+        documentation = { window = { border = "rounded" } },
+      },
+    },
+  },
+
+  -- Утилита для автоматической настройки Lua окружения (Neovim API, xplr, плагины)
+  {
+    "folke/lazydev.nvim",
+    ft = "lua",
+    opts = {
+      library = {
+        { path = "xplr", words = { "xplr" } },
+      },
+    },
+  },
+
+  -- Единственный актуальный блок LSP (работает в связке с blink.cmp и lazydev)
+  {
+    "neovim/nvim-lspconfig",
+    dependencies = {
+      "williamboman/mason.nvim",
+      "williamboman/mason-lspconfig.nvim",
+      "saghen/blink.cmp",
+    },
+    config = function()
+      require("mason").setup()
+      require("mason-lspconfig").setup({
+        ensure_installed = { "pyright", "lua_ls", "kotlin_language_server", "clangd", "qmlls", "jdtls" },
+      })
+
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
+      local servers = { "pyright", "kotlin_language_server", "clangd", "qmlls" }
+
+      for _, lsp in ipairs(servers) do
+        vim.lsp.config(lsp, { capabilities = capabilities })
+        vim.lsp.enable(lsp)
+      end
+
+      -- Настройка lua_ls с поддержкой Hyprland, xplr и Neovim
+      vim.lsp.config("lua_ls", {
+        capabilities = capabilities,
+        settings = {
+          Lua = {
+            runtime = { version = "LuaJIT" },
+            diagnostics = { globals = { "vim", "hl", "xplr" } },
+            workspace = {
+              library = { vim.fn.expand("~/.config/hypr/stubs") },
+              checkThirdParty = false,
+            },
+            telemetry = { enable = false },
+          },
+        },
+      })
+      vim.lsp.enable("lua_ls")
+    end,
+  },
+
+  -- Перерисовка UI поиска и командной строки на старом месте (внизу)
+  {
+    "folke/noice.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "MunifTanjim/nui.nvim",
+      "stevearc/dressing.nvim", 
+    },
+    config = function()
+      require("noice").setup({
+        lsp = {
+          override = {
+            ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
+            ["vim.lsp.util.stylize_markdown"] = true,
+            ["cmp.entry.get_documentation"] = true,
+          },
+        },
+        presets = {
+          bottom_search = true,     
+          command_palette = false,  
+          long_message_to_split = true,
+          inc_rename = false,
+        },
+        views = {
+          cmdline_popup = {
+            position = {
+              row = "100%",         
+              col = 0,
+            },
+            size = {
+              width = "100%",       
+              height = "auto",
+            },
+            border = {
+              style = "none",       
+            },
+            win_options = {
+              winhighlight = "Normal:Normal,FloatBorder:Normal",
+            },
+          },
+        },
+      })
+    end,
+  },
+
+  -- 2. Разноцветные скобки
+  {
+    "HiPhish/rainbow-delimiters.nvim",
+    dependencies = "nvim-treesitter/nvim-treesitter",
+  },
+
+  -- 3. Красивые линии отступов
+  {
+    "lukas-reineke/indent-blankline.nvim",
+    main = "ibl",
+    opts = {
+      indent = { char = "│" },
+      scope = { enabled = true },
+    },
+  },
+})

@@ -1,0 +1,51 @@
+[config]
+# Главные настройки (оставляем пустыми, чтобы работали дефолты)
+
+[global]
+# Этот скрипт заставит qt6ct/qt5ct обновить тему в реальном времени
+post_hook = "dbus-send --session --dest=org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut string'none' || pkill -USR1 -f qt6ct"
+
+[templates.wezterm]
+input_path = '~/.config/matugen/templates/wezterm.json'
+output_path = '~/.config/wezterm/modules/colors.lua'
+
+[templates.nvim]
+input_path = "~/.config/matugen/templates/nvim.lua"
+output_path = "~/.config/nvim/lua/config/colors.lua"
+
+[templates.hyprland_config]
+input_path = '~/.config/matugen/templates/hyprland.lua'
+output_path = '~/.config/hypr/modules/colors.lua'
+
+[templates.hyprland_quickshell]
+input_path = "~/.config/matugen/templates/quickshell.qml"
+output_path = "~/.config/hypr/quickshell/core/Colors.qml"
+
+[templates.qt5ct]
+input_path = '~/.config/matugen/templates/qt.conf'
+output_path = '~/.config/qt5ct/colors/matugen.conf'
+
+[templates.qt6]
+input_path = '~/.config/matugen/templates/qt6.colors'
+output_path = '~/.local/share/color-schemes/matugen.colors'
+post_hook = 'gsettings set org.gnome.desktop.interface color-scheme "prefer-{{mode}}"'
+
+[templates.blesh]
+input_path = '~/.config/matugen/templates/ble.sh'
+output_path = '~/.blerc'
+
+[templates.dunst]
+input_path = "~/.config/matugen/templates/dunst-colors"
+output_path = "~/.config/dunst/dunstrc"
+
+[templates.starship]
+input_path = "~/.config/matugen/templates/starship.toml"
+output_path = "~/.config/starship.toml"
+
+[templates.xplr]
+input_path = "~/.config/matugen/templates/xplr.lua"
+output_path = "~/.config/xplr/theme.lua"
+
+[templates.yazi]
+input_path = '~/.config/matugen/templates/yazi.toml'
+output_path = '~/.config/yazi/theme.toml'

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://github.com",
+  "display": {
+    "color": {
+      "keys": "\u001b[38;2;{{colors.primary.default.red}};{{colors.primary.default.green}};{{colors.primary.default.blue}}m",
+      "title": "\u001b[38;2;{{colors.secondary.default.red}};{{colors.secondary.default.green}};{{colors.secondary.default.blue}}m",
+      "output": "\u001b[38;2;{{colors.on_surface.default.red}};{{colors.on_surface.default.green}};{{colors.on_surface.default.blue}}m"
+    },
+    "separator": " ➜ "
+  },
+  "modules": [
+    "title",
+    "separator",
+    "os",
+    "host",
+    "kernel",
+    "uptime",
+    "packages",
+    "shell",
+    "display",
+    "de",
+    "wm",
+    "terminal",
+    "cpu",
+    "gpu",
+    "memory",
+    {
+      "type": "disk",
+      "folders": "/"
+    },
+    {
+      "type": "disk",
+      "folders": "/home"
+    },
+    "break"
+  ]
+}
+
+
+"logo": {
+    "type": "auto",
+    "position": "left",
+    "small": true 
+}

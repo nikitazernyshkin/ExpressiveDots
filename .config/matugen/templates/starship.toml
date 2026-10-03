@@ -1,0 +1,42 @@
+format = """$directory$character"""
+right_format = """$time"""
+
+[time]
+disabled = false
+format = '[ $time](bold fg:{{colors.primary.default.hex}})'
+time_format = '%H:%M:%S'
+
+[directory]
+style = 'bold fg:{{colors.tertiary.default.hex}}'
+format = '[$path]($style)[$read_only]($read_only_style) '
+truncation_length = 3
+truncation_symbol = '…/'
+read_only = ' '
+read_only_style = 'bold fg:{{colors.error.default.hex}}'
+
+[git_branch]
+format = '[ $branch](bold fg:{{colors.secondary.default.hex}}) '
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]](bold fg:{{colors.error.default.hex}}) )'
+
+[python]
+format = '[🐍 ${version}]($style) '
+style = 'bold fg:{{colors.primary_container.default.hex}}'
+
+[nodejs]
+format = '[ ${version}]($style) '
+style = 'bold fg:{{colors.tertiary_container.default.hex}}'
+
+[rust]
+format = '[ ${version}]($style) '
+style = 'bold fg:{{colors.secondary_container.default.hex}}'
+
+[cmd_duration]
+min_time = 2_000
+format = '[$duration](bold fg:{{colors.on_surface_variant.default.hex}}) '
+
+[character]
+success_symbol = '[✦](bold fg:{{colors.primary.default.hex}})'
+error_symbol = '[✦](bold fg:{{colors.error.default.hex}})'
+vimcmd_symbol = '[](bold fg:{{colors.tertiary.default.hex}})'
