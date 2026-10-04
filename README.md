@@ -8,7 +8,7 @@ A personal Linux desktop rice inspired by Android's expressive design language.
 
 ## Preview
 
-![Video](assets/desktop.mp4)
+<video src="assets/desktop.mp4" controls width="100%"></video>
 
 ## Features
 
