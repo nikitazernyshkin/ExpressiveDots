@@ -1,20 +1,14 @@
-# expressiveDots
+# ExpressiveDots
 
 A personal Linux desktop rice inspired by Android's expressive design language.
 
 **Expressive surfaces. Dynamic colors. Tiny details.**
 
-`expressiveDots` is a custom desktop environment setup built around Hyprland and Quickshell, bringing together a cohesive interface inspired by Material 3 Expressive and modern Android UI.
+`ExpressiveDots` is a custom desktop environment setup built around Hyprland and Quickshell, bringing together a cohesive interface inspired by Material 3 Expressive and modern Android UI.
 
 ## Preview
 
-<!-- Replace these with your screenshots -->
-
-<!-- ![Desktop](assets/desktop.png) -->
-
-<!-- ![Control Center](assets/control-center.png) -->
-
-<!-- ![Notifications](assets/notifications.png) -->
+![Desktop](assets/desktop.mp4) -->
 
 ## Features
 
@@ -53,7 +47,7 @@ A personal Linux desktop rice inspired by Android's expressive design language.
 3. Clone this repository:
 
    ```bash
-   git clone https://github.com/USERNAME/expressiveDots.git
+   git clone https://github.com/nikitazernyshkin/ExpressiveDots.git
    cd expressiveDots
    ```
 
