@@ -11,8 +11,21 @@ PanelWindow {
     id: sheet
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "app-drawer"
-    WlrLayershell.exclusiveZone: -1
+    exclusiveZone: -1
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    // Match NotificationPanel outside-click behavior while leaving the 34px TopBar
+    // input area untouched (Overlay is above the Top layer in wlroots).
+    mask: Region {
+        width: sheet.width
+        height: sheet.height
+        Region {
+            x: 0; y: 0
+            width: sheet.width
+            height: 34
+            intersection: Intersection.Subtract
+        }
+    }
 
     anchors { top: true; left: true; right: true; bottom: true }
     visible: open
@@ -26,9 +39,9 @@ PanelWindow {
     // ── IPC Handler (Исправлено) ─────────────────────────
     IpcHandler {
         target: "launcher"
-        function toggle(): void { sheet.open = !sheet.open }
-        function open(): void { sheet.open = true }
-        function close(): void { sheet.open = false }
+        function toggle(): void { sheet.toggle() }
+        function open(): void { sheet.show() }
+        function close(): void { sheet.close() }
     }
 
     property var apps: []
@@ -58,12 +71,17 @@ PanelWindow {
         return list.slice(0, 6)
     }
 
-    function toggle(x, y) { 
-        if (x !== undefined && y !== undefined) {
-            clickX = x
-            clickY = y
-        }
-        open = !open 
+    function show(): void {
+        open = true
+    }
+
+    function close(): void {
+        open = false
+    }
+
+    function toggle(): void {
+        if (open) close()
+        else show()
     }
 
     // ── Размытие фона через Hyprland ────────────────────────
@@ -159,20 +177,16 @@ PanelWindow {
         loadPinnedProc.running = true
     }
 
-    // ── Затемнение заднего плана ──────────────────────────
-    MouseArea {
-        id: backdrop
+    // ── Затемнение заднего плана (визуальное, click-through) ──
+    Item {
         anchors.fill: parent
-        opacity: sheet.open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+        visible: sheet.open
 
         Rectangle {
             anchors.fill: parent
             color: "#000000"
             opacity: 0.25
         }
-
-        onClicked: sheet.open = false
     }
 
     // ── Сканирование приложений ──────────────────────────
@@ -334,6 +348,15 @@ PanelWindow {
     }
 
     // ── Позиционирование и анимация выезда снизу ───────
+    // Clicks outside the launcher card dismiss it, like NotificationPanel.
+    // The frame is declared after this MouseArea, so the card stays interactive.
+    MouseArea {
+        id: outsideClickArea
+        anchors.fill: parent
+        enabled: sheet.open
+        onClicked: sheet.close()
+    }
+
     Item {
         id: frame
         anchors.horizontalCenter: parent.horizontalCenter
@@ -341,7 +364,7 @@ PanelWindow {
         width: 680
         height: 700
 
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; onClicked: {} }
 
         Item {
             id: content

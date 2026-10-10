@@ -9,13 +9,13 @@ import Quickshell.Io
 PanelWindow {
     id: notifRoot
 
-    WlrLayershell.layer: WlrLayershell.Layer.Overlay
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "notification-center"
-    WlrLayershell.exclusiveZone: -1
+    exclusiveZone: -1
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors { bottom: true; left: true; right: true; top: false }
-    height: Screen.height - 45
+    implicitHeight: Math.max(1, (notifRoot.screen ? notifRoot.screen.height : Screen.height) - 45)
     visible: open
     color: "transparent"
 
@@ -185,6 +185,15 @@ PanelWindow {
     function toggle(): void {
         if (open) close()
         else show()
+    }
+
+    // Keep the same public IPC surface as Launcher, Control Center and Binds.
+    IpcHandler {
+        target: "notifications"
+        function toggle(): void { notifRoot.toggle() }
+        function open(): void { notifRoot.show() }
+        function close(): void { notifRoot.close() }
+        function refresh(): void { notifRoot.fetchDunstHistory() }
     }
 
     function fetchDunstHistory() { dunstProcess.running = true }

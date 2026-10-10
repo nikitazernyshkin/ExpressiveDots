@@ -23,3 +23,8 @@ hl.workspace_rule({
     no_border = true,
     no_rounding = false
 })
+
+hl.window_rule({
+    match = { title = ".*" },
+    ["darkwindow:shade"] = "transparent_bg",
+})

@@ -13,16 +13,56 @@ PanelWindow {
     id: panel
 
     // Dependencies supplied by shell.qml.
-    property var controlCenter
     property var notificationPanel
 
     Process {
         id: commandProcess
     }
 
+    // Use dedicated processes for panel IPC so unrelated commands cannot
+    // overwrite a toggle while it is running.
+    Process { id: controlCenterIpcProcess }
+    Process { id: notificationsIpcProcess }
+    Process { id: dismissOverlayProcess }
+
+    function dismissOverlays() {
+        if (dismissOverlayProcess.running) return
+        dismissOverlayProcess.command = [
+            "sh", "-c",
+            "/usr/bin/qs -p /home/nick/.config/hypr/quickshell/shell.qml ipc call launcher close >/dev/null 2>&1; " +
+            "/usr/bin/qs -p /home/nick/.config/hypr/quickshell/shell.qml ipc call controlcenter close >/dev/null 2>&1; " +
+            "/usr/bin/qs -p /home/nick/.config/hypr/quickshell/shell.qml ipc call binds close >/dev/null 2>&1; " +
+            "/usr/bin/qs -p /home/nick/.config/hypr/quickshell/shell.qml ipc call notifications close >/dev/null 2>&1"
+        ]
+        dismissOverlayProcess.running = true
+    }
+
     function runCommand(commandLine: var) {
         commandProcess.command = commandLine
         commandProcess.running = true
+    }
+
+    // Use the exact IPC route that succeeds from the terminal. TopBar windows
+    // are instantiated per screen, so avoid calling a different PanelWindow's
+    // QML object method directly.
+    function callShellIpc(target: string, method: string) {
+        var proc = null
+        if (target === "controlcenter") proc = controlCenterIpcProcess
+        else if (target === "notifications") proc = notificationsIpcProcess
+
+        if (proc === null) {
+            console.warn("[TopBar] Unknown Quickshell IPC target:", target)
+            return
+        }
+        if (proc.running)
+            return
+
+        proc.command = [
+            "/usr/bin/qs",
+            "-p", "/home/nick/.config/hypr/quickshell/shell.qml",
+            "ipc", "call", target, method
+        ]
+        proc.running = true
     }
 
     WlrLayershell.layer: WlrLayer.Top
@@ -34,42 +74,15 @@ PanelWindow {
         left: true
         right: true
     }
-    /*
-     * ─────────────────────────────
-     * DP
-     * ─────────────────────────────
-     *
-     * QML/Wayland already works in
-     * logical pixels.
-     *
-     * So this behaves similarly to
-     * Compose dp and respects system
-     * display scaling.
-     */
+
     function dp(value) {
         return value
     }
 
-    /*
-     * OLD PANEL SIZE
-     *
-     * Original panel:
-     * 34px
-     *
-     * Now:
-     * 34dp
-     */
-
     implicitHeight: dp(34)
-    focusable: typeof workspaceArea !== "undefined" && workspaceArea.editingWorkspaceId >= 0
+    focusable: false
     color: "#01ffffff" 
 
-
-    /*
-     * ─────────────────────────────
-     * STATUS
-     * ─────────────────────────────
-     */
     property string home: "/home/nick/"
     property int wifiSignal: -1
     property int btOn: -1
@@ -77,11 +90,14 @@ PanelWindow {
     property bool charging: false
     property string kbLayout: "US"
 
-    /*
-     * ─────────────────────────────
-     * COLORS
-     * ─────────────────────────────
-     */
+    // Clicking empty space in the top bar also dismisses open popup panels.
+    // It sits behind all actual controls, so their own click handlers still work.
+    MouseArea {
+        anchors.fill: parent
+        z: -1
+        onClicked: panel.dismissOverlays()
+    }
+
     readonly property color colorPrimary: typeof Colors !== "undefined" ? Colors.primary : "#D0BCFF"
     readonly property color colorSurface: typeof Colors !== "undefined" ? Colors.surface : "#49454F"
     readonly property color colorSurfaceVariant: typeof Colors !== "undefined" ? Colors.surfaceVariant : "#454654"
@@ -90,22 +106,11 @@ PanelWindow {
     readonly property color colorOutline: typeof Colors !== "undefined" ? Colors.outline : "#938F96"
     readonly property color colorBackground: typeof Colors !== "undefined" ? Colors.background : "#111318"
 
-    /*
-     * ─────────────────────────────
-     * TONAL SURFACES
-     * ─────────────────────────────
-     */
     readonly property color surfaceLow: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.82)
     readonly property color surfaceContainer: Qt.rgba(colorSurfaceVariant.r, colorSurfaceVariant.g, colorSurfaceVariant.b, 0.84)
     readonly property color surfaceHigh: Qt.rgba(colorSurfaceVariant.r, colorSurfaceVariant.g, colorSurfaceVariant.b, 0.96)
     readonly property color surfaceHover: Qt.rgba(colorPrimary.r, colorPrimary.g, colorPrimary.b, 0.16)
 
-    /*
-     * TRAY MENU COLORS
-     *
-     * Change these only if you want to theme the tray context menu.
-     * The rest of the panel design is untouched.
-     */
     readonly property color trayMenuBackground: "#202124"
     readonly property color trayMenuText: "#E8EAED"
     readonly property color trayMenuDisabled: "#6F7278"
@@ -114,11 +119,6 @@ PanelWindow {
     readonly property color trayMenuSeparator: "#3C4043"
     readonly property color trayMenuBorder: "#45474D"
 
-    /*
-     * ═════════════════════════════
-     * WIFI
-     * ═════════════════════════════
-     */
     Process {
         id: wifiProbe
 
@@ -137,11 +137,6 @@ PanelWindow {
         }
     }
 
-    /*
-     * ═════════════════════════════
-     * BLUETOOTH
-     * ═════════════════════════════
-     */
     Process {
         id: btProbe
 
@@ -157,11 +152,6 @@ PanelWindow {
         }
     }
 
-    /*
-     * ═════════════════════════════
-     * BATTERY
-     * ═════════════════════════════
-     */
     Process {
         id: batteryProbe
 
@@ -181,11 +171,6 @@ PanelWindow {
         }
     }
 
-    /*
-     * ═════════════════════════════
-     * KEYBOARD
-     * ═════════════════════════════
-     */
     Connections {
         target: Hyprland
 
@@ -215,11 +200,6 @@ PanelWindow {
         }
     }
 
-    /*
-     * ═════════════════════════════
-     * TIMERS
-     * ═════════════════════════════
-     */
     Timer {
         interval: 3000
         running: true
@@ -243,14 +223,7 @@ PanelWindow {
 
         onTriggered: batteryProbe.running = true
     }
-    /*
-     * ═════════════════════════════
-     *
-     * LEFT
-     * CLOCK CAPSULE
-     *
-     * ═════════════════════════════
-     */
+
     Rectangle {
         id: clockCapsule
 
@@ -311,29 +284,16 @@ PanelWindow {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
 
-            onClicked: notificationPanel.toggle()
+            onClicked: {
+                if (notificationPanel && typeof notificationPanel.toggle === "function") {
+                    notificationPanel.toggle()
+                } else {
+                    panel.callShellIpc("notifications", "toggle")
+                }
+            }
         }
     }
 
-    /*
-     * ═════════════════════════════
-     *
-     * CENTER
-     * BROWSER-LIKE WORKSPACE TABS
-     *
-     * The workspace model is intentionally read from Hyprland's
-     * public JSON IPC (`hyprctl workspaces -j`) instead of depending
-     * on Quickshell's Hyprland ObjectModel. This makes the widget
-     * independent of the QML backend and fits the Lua configuration
-     * model used by Hyprland 0.55+.
-     *
-     * LMB -> focus
-     * RMB -> focus + rename
-     * Enter -> save
-     * Esc -> cancel
-     * + -> first free numeric workspace
-     * ═════════════════════════════
-     */
     Item {
         id: workspaceArea
 
@@ -349,20 +309,18 @@ PanelWindow {
         height: panel.dp(30)
         clip: true
 
-        property int editingWorkspaceId: -1
         property int activeWorkspaceId: -1
         property string activeWorkspaceNameFromIpc: ""
         property var workspaceItems: []
 
+        readonly property int fixedWorkspaceCount: 10
         readonly property real gap: panel.dp(3)
-        readonly property real plusWidth: panel.dp(24)
         readonly property real preferredInactiveWidth: panel.dp(29)
         readonly property real minimumInactiveWidth: panel.dp(21)
         readonly property real minimumActiveWidth: panel.dp(76)
         readonly property real maximumActiveWidth: panel.dp(150)
 
-        readonly property int workspaceCount:
-            Math.max(0, workspaceItems.length - 1)
+        readonly property int workspaceCount: fixedWorkspaceCount
 
         readonly property real availableWidth:
             Math.max(panel.dp(90), width - panel.dp(2))
@@ -423,7 +381,7 @@ PanelWindow {
             Math.max(0, workspaceCount - 1)
 
         readonly property real totalGapWidth:
-            workspaceCount * gap
+            Math.max(0, workspaceCount - 1) * gap
 
         readonly property real effectiveInactiveWidth: {
             if (inactiveCount <= 0)
@@ -432,7 +390,6 @@ PanelWindow {
             const preferredTotal =
                 activeNaturalWidth
                 + inactiveCount * preferredInactiveWidth
-                + plusWidth
                 + totalGapWidth
 
             if (preferredTotal <= availableWidth)
@@ -442,7 +399,6 @@ PanelWindow {
                 panel.dp(0),
                 availableWidth
                 - activeNaturalWidth
-                - plusWidth
                 - totalGapWidth
             )
 
@@ -459,7 +415,6 @@ PanelWindow {
             const preferredTotal =
                 activeNaturalWidth
                 + inactiveCount * preferredInactiveWidth
-                + plusWidth
                 + totalGapWidth
 
             if (preferredTotal <= availableWidth)
@@ -469,7 +424,6 @@ PanelWindow {
                 minimumActiveWidth,
                 availableWidth
                 - inactiveCount * effectiveInactiveWidth
-                - plusWidth
                 - totalGapWidth
             )
 
@@ -479,15 +433,10 @@ PanelWindow {
             )
         }
 
-        readonly property real tabsWidth: {
-            if (workspaceCount <= 0)
-                return plusWidth
-
-            return effectiveActiveWidth
-                + inactiveCount * effectiveInactiveWidth
-                + plusWidth
-                + totalGapWidth
-        }
+        readonly property real tabsWidth:
+            effectiveActiveWidth
+            + inactiveCount * effectiveInactiveWidth
+            + totalGapWidth
 
         function focusWorkspace(id) {
             runCommand([
@@ -495,32 +444,6 @@ PanelWindow {
                 "dispatch",
                 "hl.dsp.focus({ workspace = " + String(id) + " })"
             ])
-        }
-
-        function nextFreeWorkspaceId() {
-            let candidate = 1
-
-            while (true) {
-                let used = false
-
-                for (let i = 0; i < workspaceItems.length; ++i) {
-                    const item = workspaceItems[i]
-                    if (item && item.kind === "workspace" && item.id === candidate) {
-                        used = true
-                        break
-                    }
-                }
-
-                if (!used)
-                    return candidate
-
-                ++candidate
-            }
-        }
-
-        function createWorkspace() {
-            focusWorkspace(nextFreeWorkspaceId())
-            refreshWorkspaceData()
         }
 
         function escapeLuaString(value) {
@@ -531,22 +454,29 @@ PanelWindow {
                 .replace(/\n/g, " ")
         }
 
-        function beginRename(id) {
-            let exists = false
+        function beginRename(id, anchorX) {
+            if (id < 1 || id > fixedWorkspaceCount)
+                return
 
+            let currentName = ""
             for (let i = 0; i < workspaceItems.length; ++i) {
                 const item = workspaceItems[i]
-                if (item && item.kind === "workspace" && item.id === id) {
-                    exists = true
+                if (item && item.id === id) {
+                    const candidate = String(item.name || "").trim()
+                    if (candidate !== String(id))
+                        currentName = candidate
                     break
                 }
             }
 
-            if (!exists)
-                return
-
-            focusWorkspace(id)
-            editingWorkspaceId = id
+            renamePopup.workspaceId = id
+            renameInput.text = currentName
+            renamePopup.x = Math.max(
+                panel.dp(6),
+                Math.min(anchorX, panel.width - renamePopup.width - panel.dp(6))
+            )
+            renamePopup.y = panel.implicitHeight + panel.dp(4)
+            renamePopup.open()
         }
 
         function saveRename(id, value) {
@@ -567,12 +497,7 @@ PanelWindow {
                 + "\" })"
             ])
 
-            editingWorkspaceId = -1
             refreshWorkspaceData()
-        }
-
-        function cancelRename() {
-            editingWorkspaceId = -1
         }
 
         function refreshWorkspaceData() {
@@ -584,94 +509,46 @@ PanelWindow {
         }
 
         function rebuildWorkspaceItems(workspaces) {
-            const list = []
+            const names = ({})
 
+            // Keep names for workspaces currently known to Hyprland.
             for (let i = 0; i < workspaces.length; ++i) {
                 const ws = workspaces[i]
-                if (!ws || typeof ws.id !== "number" || ws.id < 1)
+                if (!ws || typeof ws.id !== "number" || ws.id < 1 || ws.id > fixedWorkspaceCount)
                     continue
-
-                list.push({
-                    kind: "workspace",
-                    id: ws.id,
-                    name: String(ws.name || "").trim()
-                })
+                const name = String(ws.name || "").trim()
+                if (name.length > 0)
+                    names[ws.id] = name
             }
 
-            /* Fallback to Quickshell's native model if hyprctl returned nothing. */
-            if (list.length === 0 && Hyprland.workspaces) {
+            // Use Quickshell's native workspace list as a fallback if hyprctl
+            // returned an empty/partial result.
+            if (Hyprland.workspaces) {
                 const nativeList = Array.from(Hyprland.workspaces)
-
                 for (let i = 0; i < nativeList.length; ++i) {
                     const ws = nativeList[i]
-                    if (!ws || ws.id < 1)
+                    if (!ws || ws.id < 1 || ws.id > fixedWorkspaceCount)
                         continue
-
-                    list.push({
-                        kind: "workspace",
-                        id: ws.id,
-                        name: String(ws.name || "").trim()
-                    })
+                    const name = String(ws.name || "").trim()
+                    if (name.length > 0 && !names[ws.id])
+                        names[ws.id] = name
                 }
             }
 
-            list.sort(function(a, b) {
-                return a.id - b.id
-            })
+            const list = []
+            for (let id = 1; id <= fixedWorkspaceCount; ++id) {
+                let name = names[id] || ""
+                if (id === activeWorkspaceId && activeWorkspaceNameFromIpc.length > 0)
+                    name = activeWorkspaceNameFromIpc
+                if (name.length === 0)
+                    name = String(id)
 
-            /* Never leave the bar with only '+', even during IPC startup. */
-            if (list.length === 0 && activeWorkspaceId > 0) {
                 list.push({
                     kind: "workspace",
-                    id: activeWorkspaceId,
-                    name: activeWorkspaceNameFromIpc || String(activeWorkspaceId)
+                    id: id,
+                    name: name
                 })
             }
-
-            if (activeWorkspaceId > 0) {
-                let found = false
-
-                for (let i = 0; i < list.length; ++i) {
-                    if (list[i].id === activeWorkspaceId) {
-                        found = true
-                        break
-                    }
-                }
-
-                if (!found) {
-                    list.push({
-                        kind: "workspace",
-                        id: activeWorkspaceId,
-                        name: activeWorkspaceNameFromIpc || String(activeWorkspaceId)
-                    })
-                    list.sort(function(a, b) {
-                        return a.id - b.id
-                    })
-                }
-            }
-
-            let nextId = 1
-            while (true) {
-                let occupied = false
-
-                for (let i = 0; i < list.length; ++i) {
-                    if (list[i].id === nextId) {
-                        occupied = true
-                        break
-                    }
-                }
-
-                if (!occupied)
-                    break
-
-                ++nextId
-            }
-
-            list.push({
-                kind: "new",
-                id: nextId,
-                name: ""
-            })
 
             workspaceItems = list
         }
@@ -700,6 +577,133 @@ PanelWindow {
                     activeWorkspaceNameFromIpc = String(Hyprland.focusedWorkspace.name || "").trim()
                 }
             }
+        }
+
+        Popup {
+            id: renamePopup
+
+            // A separate popup window can extend below the 34px top bar without
+            // resizing or covering the rest of the panel.
+            popupType: Popup.Window
+            parent: Overlay.overlay
+            width: panel.dp(264)
+            height: panel.dp(132)
+            padding: panel.dp(12)
+            modal: false
+            focus: true
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+            property int workspaceId: -1
+
+            background: Rectangle {
+                radius: panel.dp(18)
+                color: panel.colorBackground
+                border.width: panel.dp(1)
+                border.color: panel.colorOutline
+            }
+
+            contentItem: ColumnLayout {
+                spacing: panel.dp(8)
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Переименовать воркспейс " + renamePopup.workspaceId
+                    color: panel.colorBgText
+                    font.family: "Fira Sans"
+                    font.pixelSize: panel.dp(12)
+                    font.bold: true
+                    elide: Text.ElideRight
+                }
+
+                TextField {
+                    id: renameInput
+                    Layout.fillWidth: true
+                    implicitHeight: panel.dp(34)
+                    placeholderText: "Название воркспейса"
+                    color: panel.colorBgText
+                    selectByMouse: true
+                    maximumLength: 32
+                    font.family: "Fira Sans"
+                    font.pixelSize: panel.dp(11)
+                    leftPadding: panel.dp(10)
+                    rightPadding: panel.dp(10)
+
+                    background: Rectangle {
+                        radius: panel.dp(9)
+                        color: panel.surfaceLow
+                        border.width: panel.dp(1)
+                        border.color: renameInput.activeFocus
+                            ? panel.colorPrimary
+                            : panel.colorOutline
+                    }
+
+                    onAccepted: {
+                        workspaceArea.saveRename(renamePopup.workspaceId, text)
+                        renamePopup.close()
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: panel.dp(8)
+
+                    Item { Layout.fillWidth: true }
+
+                    Rectangle {
+                        Layout.preferredWidth: panel.dp(72)
+                        Layout.preferredHeight: panel.dp(28)
+                        radius: height / 2
+                        color: cancelHover.containsMouse ? panel.surfaceContainer : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Отмена"
+                            color: panel.colorBgText
+                            font.family: "Fira Sans"
+                            font.pixelSize: panel.dp(10)
+                        }
+
+                        MouseArea {
+                            id: cancelHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: renamePopup.close()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredWidth: panel.dp(92)
+                        Layout.preferredHeight: panel.dp(28)
+                        radius: height / 2
+                        color: saveHover.containsMouse ? panel.colorPrimary : panel.surfaceHigh
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Сохранить"
+                            color: panel.colorBgText
+                            font.family: "Fira Sans"
+                            font.pixelSize: panel.dp(10)
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            id: saveHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                workspaceArea.saveRename(renamePopup.workspaceId, renameInput.text)
+                                renamePopup.close()
+                            }
+                        }
+                    }
+                }
+            }
+
+            onOpened: Qt.callLater(function() {
+                renameInput.forceActiveFocus()
+                renameInput.selectAll()
+            })
         }
 
         Process {
@@ -753,21 +757,12 @@ PanelWindow {
                 delegate: Item {
                     id: workspaceTab
 
-                    readonly property bool isNewTab:
-                        modelData && modelData.kind === "new"
-
                     readonly property bool isActive:
-                        !isNewTab && modelData.id === workspaceArea.activeWorkspaceId
+                        modelData.id === workspaceArea.activeWorkspaceId
 
-                    readonly property bool isEditing:
-                        !isNewTab
-                        && modelData.id === workspaceArea.editingWorkspaceId
-
-                    width: isNewTab
-                        ? workspaceArea.plusWidth
-                        : isActive
-                            ? workspaceArea.effectiveActiveWidth
-                            : workspaceArea.effectiveInactiveWidth
+                    width: isActive
+                        ? workspaceArea.effectiveActiveWidth
+                        : workspaceArea.effectiveInactiveWidth
 
                     height: parent.height
 
@@ -817,7 +812,7 @@ PanelWindow {
                     }
 
                     Text {
-                        visible: !isActive && !isNewTab
+                        visible: !isActive
                         anchors.centerIn: capsule
                         text: String(modelData.id)
                         color: tabMouse.containsMouse
@@ -830,7 +825,7 @@ PanelWindow {
                     }
 
                     Row {
-                        visible: isActive && !isEditing
+                        visible: isActive
 
                         anchors {
                             left: capsule.left
@@ -871,114 +866,33 @@ PanelWindow {
                         }
                     }
 
-                    TextInput {
-                        id: renameInput
-
-                        visible: isEditing
-                        z: 10
-
-                        anchors {
-                            left: capsule.left
-                            right: capsule.right
-                            verticalCenter: capsule.verticalCenter
-                            leftMargin: panel.dp(9)
-                            rightMargin: panel.dp(9)
-                        }
-
-                        text: workspaceArea.hasCustomName(modelData)
-                            ? String(modelData.name || "").trim()
-                            : ""
-                        color: panel.colorBgText
-
-                        font.family: "Fira Sans"
-                        font.pixelSize: panel.dp(10)
-                        font.bold: true
-
-                        horizontalAlignment: TextInput.AlignHCenter
-                        selectByMouse: true
-                        maximumLength: 32
-                        clip: true
-
-                        Rectangle {
-                            z: -1
-                            anchors.fill: parent
-                            anchors.margins: -panel.dp(3)
-                            color: Qt.rgba(
-                                panel.colorBackground.r,
-                                panel.colorBackground.g,
-                                panel.colorBackground.b,
-                                0.20
-                            )
-                            border.width: panel.dp(0.5)
-                            border.color: panel.colorPrimary
-                            radius: panel.dp(6)
-                        }
-
-                        onVisibleChanged: {
-                            if (visible) {
-                                Qt.callLater(function() {
-                                    forceActiveFocus()
-                                    selectAll()
-                                })
-                            }
-                        }
-
-                        onAccepted: workspaceArea.saveRename(modelData.id, text)
-
-                        Keys.onEscapePressed: function(event) {
-                            workspaceArea.cancelRename()
-                            event.accepted = true
-                        }
-                    }
-
                     MouseArea {
                         id: tabMouse
 
                         anchors.fill: parent
                         z: 5
-                        enabled: !isEditing
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: function(mouse) {
-                            if (isNewTab) {
-                                workspaceArea.createWorkspace()
-                                return
-                            }
-
+                            panel.dismissOverlays()
                             if (mouse.button === Qt.RightButton) {
-                                workspaceArea.beginRename(modelData.id)
+                                workspaceArea.beginRename(
+                                    modelData.id,
+                                    workspaceArea.x + workspaceTabRow.x + workspaceTab.x
+                                )
                             } else {
                                 workspaceArea.focusWorkspace(modelData.id)
                             }
                         }
                     }
 
-                    Text {
-                        visible: isNewTab
-                        anchors.centerIn: capsule
-                        text: "+"
-                        color: tabMouse.containsMouse
-                            ? panel.colorPrimary
-                            : panel.colorOutline
-
-                        font.family: "Fira Sans"
-                        font.pixelSize: panel.dp(14)
-                        font.bold: true
-                    }
                 }
             }
         }
     }
 
-    /*
-     * ═════════════════════════════
-     *
-     * RIGHT SECTION
-     *
-     * ═════════════════════════════
-     */
     Row {
         id: rightSection
 
@@ -990,18 +904,6 @@ PanelWindow {
 
         spacing: panel.dp(4)
 
-        /*
-         * ─────────────────────────
-         * SYSTEM TRAY CAPSULE
-         * ─────────────────────────
-         */
-        /*
-         * SYSTEM TRAY
-         *
-         * Use Quickshell's native StatusNotifierItem support here.
-         * The tray item itself owns activation, scrolling and its DBus menu.
-         * QsMenuAnchor is the supported way to display that menu.
-         */
         Rectangle {
             id: systemTrayCapsule
 
@@ -1053,6 +955,7 @@ PanelWindow {
                                 Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
                             onClicked: (mouse) => {
+                                panel.dismissOverlays()
                                 if (mouse.button === Qt.RightButton) {
                                     if (modelData.hasMenu)
                                         trayMenuAnchor.open()
@@ -1126,6 +1029,7 @@ PanelWindow {
                 cursorShape: Qt.PointingHandCursor
 
                 onClicked: {
+                    panel.dismissOverlays()
                     runCommand([
                         "hyprctl",
                         "switchxkblayout",
@@ -1136,17 +1040,6 @@ PanelWindow {
             }
         }
 
-        /*
-         * ─────────────────────────
-         *
-         * SYSTEM STATUS CAPSULE
-         *
-         * WIFI
-         * BLUETOOTH
-         * BATTERY
-         *
-         * ─────────────────────────
-         */
         Rectangle {
             id: systemCapsule
 
@@ -1175,9 +1068,6 @@ PanelWindow {
                 anchors.centerIn: parent
                 spacing: panel.dp(7)
 
-                /*
-                 * WIFI
-                 */
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: panel.wifiSignal <= 0 ? "\ue648" : panel.wifiSignal < 30 ? "\uf0b0" : panel.wifiSignal < 55 ? "\ue1d9" : panel.wifiSignal < 75 ? "\ue1da" : "\uf1eb"
@@ -1187,9 +1077,6 @@ PanelWindow {
                     color: panel.wifiSignal > 0 ? panel.colorBgText : panel.colorError
                 }
 
-                /*
-                 * BLUETOOTH
-                 */
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: panel.btOn === 1 ? "\ue1a7" : "\ue1a8"
@@ -1199,9 +1086,6 @@ PanelWindow {
                     color: panel.btOn === 1 ? panel.colorPrimary : panel.colorOutline
                 }
 
-                /*
-                 * BATTERY
-                 */
                 Item {
                     id: androidBattery
 
@@ -1280,7 +1164,7 @@ PanelWindow {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
 
-                onClicked: controlCenter.toggleMain()
+                onClicked: panel.callShellIpc("controlcenter", "toggle")
             }
         }
     }

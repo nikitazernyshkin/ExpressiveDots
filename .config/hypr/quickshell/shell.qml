@@ -14,13 +14,13 @@ import "./lockscreen"
 ShellRoot {
     id: root
 
-    // Desktop widgets are instantiated once per output.
+    // ========================================================
+    // 1. ВИДЖЕТЫ РАБОЧЕГО СТОЛА (ЧАСЫ) НА ВСЕХ МОНИТОРАХ
+    // ========================================================
     Variants {
         model: Quickshell.screens
 
         PanelWindow {
-            id: desktopWidgets
-
             required property var modelData
             screen: modelData
 
@@ -44,110 +44,106 @@ ShellRoot {
         }
     }
 
+    // ========================================================
+    // 2. ВЕРХНЯЯ ПАНЕЛЬ (TOPBAR) НА ВСЕХ МОНИТОРАХ ОДНОВРЕМЕННО
+    // ========================================================
+    Variants {
+        model: Quickshell.screens
+
+        // Вызываем TopBar напрямую как окно. Никаких PanelWindow-оберток и anchors.fill!
+        TopBar {
+            required property var modelData
+            screen: modelData // Передаем экран в окно TopBar
+
+            notificationPanel: notifCalendar
+        }
+    }
+
+    // ========================================================
+    // 3. ДОК-ПАНЕЛЬ (DOCK) НА ВСЕХ МОНИТОРАХ ОДНОВРЕМЕННО
+    // ========================================================
+    Variants {
+        model: Quickshell.screens
+
+        // Вызываем Dock напрямую как окно.
+        Dock {
+            required property var modelData
+            screen: modelData // Передаем экран в окно Dock
+        }
+    }
+
+    // ========================================================
+    // СИНГЛТОНЫ И СЕРВИСНАЯ ЛОГИКА (Следование за курсором)
+    // ========================================================
+    // These are singleton overlays. Let PanelWindow choose its default screen;
+    // assigning Quickshell.screens.active here is unsupported in this setup.
     Binds {
         id: binds
-    }
-
-    Dock {
-        id: dock
-    }
-
-    Cliphist {
-        id: cliphistWidget
-    }
-
-    IpcHandler {
-        target: "cliphistWidget"
-
-        function toggle(): void {
-            cliphistWidget.toggle()
-        }
-
-        function open(): void {
-            cliphistWidget.visible = true
-        }
-
-        function close(): void {
-            cliphistWidget.visible = false
+        onOpenChanged: {
+            if (open) {
+                appDrawer.close()
+                controlCenter.close()
+                notifCalendar.close()
+            }
         }
     }
+    Cliphist { id: cliphistWidget }
 
     Launcher {
         id: appDrawer
+        onOpenChanged: {
+            if (open) {
+                controlCenter.close()
+                notifCalendar.close()
+                binds.close()
+            }
+        }
     }
 
     ControlCenter {
         id: controlCenter
-
-        onOpenChanged: if (open)
-            notifCalendar.close()
+        onOpenChanged: {
+            if (open) {
+                appDrawer.close()
+                notifCalendar.close()
+                binds.close()
+            }
+        }
     }
 
     NotificationPanel {
         id: notifCalendar
-
-        onOpenChanged: if (open)
-            controlCenter.close()
+        onOpenChanged: {
+            if (open) {
+                appDrawer.close()
+                controlCenter.close()
+                binds.close()
+            }
+        }
     }
 
-    TopBar {
-        id: topBar
-        controlCenter: controlCenter
-        notificationPanel: notifCalendar
-    }
-
+    // ========================================================
+    // ЭКРАН БЛОКИРОВКИ
+    // ========================================================
     property bool isSessionLocked: false
 
     LockContext {
         id: lockContext
-
         onUnlocked: root.isSessionLocked = false
     }
 
     WlSessionLock {
         id: sessionLock
-
         locked: root.isSessionLocked
+        onLockedChanged: if (!locked) root.isSessionLocked = false
 
-        onLockedChanged: {
-            if (!locked)
-                root.isSessionLocked = false
-        }
-
-        WlSessionLockSurface {
-            LockSurface {
-                anchors.fill: parent
-                context: lockContext
-                controlCenter: controlCenter
+        surface: Component {
+            WlSessionLockSurface {
+                LockSurface {
+                    anchors.fill: parent
+                    context: lockContext
+                        }
             }
-        }
-    }
-
-    IpcHandler {
-        target: "lockscreen"
-
-        function lock(): void {
-            root.isSessionLocked = true
-        }
-
-        function unlock(): void {
-            root.isSessionLocked = false
-        }
-    }
-
-    IpcHandler {
-        target: "controlcenter"
-
-        function toggle(): void {
-            controlCenter.toggleMain()
-        }
-
-        function open(): void {
-            controlCenter.open = true
-        }
-
-        function close(): void {
-            controlCenter.close()
         }
     }
 }

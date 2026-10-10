@@ -20,6 +20,17 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "binds"
+    // Keep the TopBar's 34px input strip available while the overlay is open.
+    mask: Region {
+        width: root.width
+        height: root.height
+        Region {
+            x: 0; y: 0
+            width: root.width
+            height: 34
+            intersection: Intersection.Subtract
+        }
+    }
     WlrLayershell.keyboardFocus: open
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
@@ -274,19 +285,19 @@ PanelWindow {
     IpcHandler {
         target: "binds"
 
-        function toggle() {
+        function toggle(): void {
             root.toggle()
         }
 
-        function open() {
+        function open(): void {
             root.show()
         }
 
-        function close() {
+        function close(): void {
             root.close()
         }
 
-        function refresh() {
+        function refresh(): void {
             root.refresh()
         }
     }
@@ -318,12 +329,18 @@ PanelWindow {
         anchors.centerIn: parent
 
         width: Math.min(parent.width - 32, 760)
-        height: Math.min(parent.height - 32, 720)
+        height: Math.min(parent.height - 68, 720)
 
         radius: 28
         color: cSurface
         border.width: 1
         border.color: Qt.alpha(cOutline, 0.34)
+
+        // Consume blank-space clicks inside the card; otherwise they reach the outside catcher.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {}
+        }
 
         opacity: root.open ? 1.0 : 0.0
         scale: root.open ? 1.0 : 0.96

@@ -36,7 +36,14 @@ A personal Linux desktop rice inspired by Android's expressive design language.
 * Linux with a working Wayland session
 * Hyprland
 * Quickshell
-* The dependencies used by the individual shell components
+* Hyprqt6engine
+* Hyprpm (optional)
+* Darkman
+* Hyprpicker
+* Hyprland-qt-support
+* TTF Material Symbols Variable (git version)
+* Hypridle
+* Wlsunset
 
 ### Setup
 
@@ -46,16 +53,55 @@ A personal Linux desktop rice inspired by Android's expressive design language.
 
 3. Clone this repository:
 
-   ```bash
-   git clone https://github.com/nikitazernyshkin/ExpressiveDots.git
-   cd expressiveDots
-   ```
+    ```bash
+    git clone https://github.com/nikitazernyshkin/ExpressiveDots.git .expressiveDots
+    cd .expressiveDots
 
-4. Review the configuration files and adjust paths, commands, and system-specific settings.
+    # Replace user with your username (/home/username)
+    find . -type f -exec sed -i 's/nick/user/g' {} +
+    for dir in \$(pwd)/.config/*; do
+        ln -sfn "dir" "HOME/.config/(basename "dir")"
+    done
 
-5. Copy or link the configuration into the appropriate location under `~/.config/`.
+    ln -sfn (pwd)/.local/share/darkman "HOME/.local/share/darkman"
+    ```
+ 
+4. Install plugins:
+   
+    ```bash
+    hyprpm update
+    hyprpm add https://github.com/gfhdhytghd/HyprCapture
+    hyprpm enable HyprCapture
+    hyprpm add https://github.com/yayuuu/hyprland-scroll-overview
+    hyprpm enable scrolloverview
+    hyprpm add https://github.com/devcexx/hyprvibr
+    hyprpm enable hyprvibr
+    hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors
+    hyprpm enable dynamic-cursors
+    hyprpm enable borders-plus-plus
+    hyprpm add https://github.com/micha4w/Hypr-DarkWindow
+    hyprpm enable Hypr-DarkWindow
+    hyprpm add https://github.com/savonovv/hypr-kinetic-scroll
+    hyprpm enable hypr-kinetic-scroll
+    ```
 
-6. Launch Quickshell and check the logs for missing dependencies or configuration errors.
+   Or open your config (~/.config/hypr/hyprland.lua) and comment this line:
+    ```lua
+    -- require("modules.plugins")
+    ```
+
+5. Review the configuration files and adjust paths, commands, and system-specific settings.
+
+6. Relogin in your new system!
+
+## Update
+
+Clone repository and relaunch hyprland:
+
+```bash
+    git clone https://github.com/nikitazernyshkin/ExpressiveDots.git .expressiveDots
+```
+
 
 ## Customization
 
@@ -75,4 +121,4 @@ Built for personal use and shared for anyone who wants to explore, adapt, or tak
 
 ## License
 
-Choose a license before redistributing the project. Until then, all rights are reserved by default.
+MIT Licence (XD)

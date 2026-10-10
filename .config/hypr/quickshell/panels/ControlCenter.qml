@@ -10,13 +10,25 @@ import "../components" as Components
 
 PanelWindow {
     id: cc
-    WlrLayershell.layer: WlrLayershell.Layer.Overlay
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "control-center"
-    WlrLayershell.exclusiveZone: -1
+    exclusiveZone: -1
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    anchors { bottom: true; left: true; right: true; top: false }
-    implicitHeight: Screen.height - 28
+    // Match NotificationPanel outside-click behavior while leaving the 34px TopBar
+    // input area untouched (Overlay is above the Top layer in wlroots).
+    mask: Region {
+        width: cc.width
+        height: cc.height
+        Region {
+            x: 0; y: 0
+            width: cc.width
+            height: 34
+            intersection: Intersection.Subtract
+        }
+    }
+
+    anchors { top: true; left: true; right: true; bottom: true }
     visible: open
     color: "transparent"
 
@@ -28,8 +40,41 @@ PanelWindow {
     property bool editMode: false
     property string selectedTileKey: ""
 
-    // Android 16/17-style tile sizes: 1×1 or 2×1.
-    // The panel itself remains freely resizable.
+    // ── IPC Handler ──────────────────────────────────────
+    IpcHandler {
+        target: "controlcenter"
+        function toggle(): void { cc.toggle() }
+        function open(): void { cc.show("main") }
+        function close(): void { cc.close() }
+    }
+
+    function show(section: string): void {
+        view = section || "main"
+        open = true
+        Qt.callLater(() => {
+            if (section === "wifi" && typeof wifiPanel !== "undefined" && wifiPanel.refresh) wifiPanel.refresh()
+            if (section === "bluetooth" && typeof btPanel !== "undefined" && btPanel.refresh) btPanel.refresh()
+            if (section === "battery" && typeof batPanel !== "undefined" && batPanel.refresh) batPanel.refresh()
+            if (section === "audio") audioProbe.running = true
+        })
+    }
+
+    function close(): void { open = false }
+
+    function toggle(): void {
+        if (open) close()
+        else show("main")
+    }
+
+    // ── Размытие фона через Hyprland ────────────────────────
+    Process { id: blurProc }
+    function setBlur(enable) {
+        blurProc.command = ["hyprctl", "keyword", "layerrule", enable ? "blur, control-center" : "unset, control-center"]
+        blurProc.running = true
+    }
+
+
+    // ── Модель и работа с раскладкой плиток ───────────────
     ListModel {
         id: tileModel
         ListElement { key: "wifi"; span: 2 }
@@ -132,8 +177,9 @@ PanelWindow {
         const i = tileIndex(key)
         if (i < 0) return startSpan
 
-        // Android 16/17 supports the compact 1×1 and expanded 2×1 states.
-        const threshold = 42
+        // Track pointer movement in root coordinates; resizing the tile itself must not
+        // change the measured drag distance.
+        const threshold = 28
         let target = startSpan
         if (startSpan === 1 && deltaX >= threshold) target = 2
         else if (startSpan === 2 && deltaX <= -threshold) target = 1
@@ -177,8 +223,6 @@ PanelWindow {
         const target = tileGridRepeater.itemAt(best)
         if (!target) return
 
-        // Only reorder after crossing the target tile's center. This prevents
-        // the list from jittering while the pointer moves inside a tile.
         const center = target.mapToItem(tileGrid, target.width / 2, target.height / 2)
         const source = tileGridRepeater.itemAt(from)
         if (!source) return
@@ -301,35 +345,14 @@ PanelWindow {
     readonly property color cOnError: typeof Colors !== "undefined" && Colors.onError ? Colors.onError : "#601410"
     readonly property color cBgText: typeof Colors !== "undefined" && Colors.backgroundText ? Colors.backgroundText : cOnSurface
 
-    function show(section: string): void {
-        view = section
-        open = true
-        Qt.callLater(() => {
-            if (section === "wifi") wifiPanel.refresh()
-            if (section === "bluetooth") btPanel.refresh()
-            if (section === "battery") batPanel.refresh()
-            if (section === "audio") audioProbe.running = true
-        })
-    }
-    function close(): void { open = false }
-    function toggle(section: string): void {
-        if (open && view === section) close()
-        else show(section)
-    }
-    function toggleMain(): void {
-        if (open) close()
-        else { view = "main"; open = true }
-    }
-
     onOpenChanged: {
+        setBlur(open)
         if (open) {
-            content.opacity = 0
-            content.scale = 0.95
-            content.opacity = 1
-            content.scale = 1
+            slideOut.stop()
+            slideIn.start()
         } else {
-            content.opacity = 0
-            content.scale = 0.95
+            slideIn.stop()
+            slideOut.start()
             view = "main"
         }
     }
@@ -362,9 +385,7 @@ PanelWindow {
             ? cc.cPrimary
             : (hovered ? cc.cSurfaceContainerHigh : cc.cSurfaceContainer)
 
-        Behavior on color {
-            ColorAnimation { duration: 180 }
-        }
+        Behavior on color { ColorAnimation { duration: 180 } }
 
         scale: pressed ? 0.97 : (hovered ? 1.01 : 1.0)
 
@@ -394,9 +415,7 @@ PanelWindow {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    tileRoot.tapped()
-                }
+                onClicked: tileRoot.tapped()
             }
         }
 
@@ -424,7 +443,7 @@ PanelWindow {
                     font.weight: Font.Medium
                     color: tileRoot.active
                         ? cc.cOnPrimary
-                        : (tileRoot.enabledState ? cc.cOnPrimary : cc.cOnSurface)
+                        : (tileRoot.enabledState ? "#000000" : cc.cOnSurface)
                     Behavior on color { ColorAnimation { duration: 160 } }
                 }
 
@@ -488,7 +507,6 @@ PanelWindow {
                 }
             }
         }
-
     }
 
     component M3PowerTile: Rectangle {
@@ -576,7 +594,7 @@ PanelWindow {
         Rectangle {
             id: bgTrack
             anchors.fill: parent
-            radius: height / 2 // Полное закругление краев трека
+            radius: height / 2
             color: cc.cSurfaceContainerHigh
 
             Rectangle {
@@ -584,7 +602,7 @@ PanelWindow {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 width: sliderRoot.rawPosition
-                radius: height / 2 // Закругляем саму заливку, чтобы левый край был круглым
+                radius: height / 2
                 color: cc.cPrimary
 
                 Rectangle {
@@ -606,7 +624,7 @@ PanelWindow {
                       : sliderRoot.icon === "volume" || sliderRoot.icon === "volume_up" ? "volume_up"
                       : sliderRoot.icon
                 font.family: cc.iconFont
-                font.pixelSize: 18 // Чуть уменьшена иконка под новый размер
+                font.pixelSize: 18
                 font.weight: Font.Medium
                 color: cc.cOnSurface 
                 z: 30
@@ -617,7 +635,7 @@ PanelWindow {
             id: dividerLine
             width: 4 
             height: parent.height + 8 
-            radius: 2 // Закругленные концы разделителя
+            radius: 2
             anchors.verticalCenter: parent.verticalCenter
             x: Math.max(0, Math.min(sliderRoot.width - width, sliderRoot.rawPosition - width / 2))
             color: cc.cPrimary 
@@ -847,13 +865,11 @@ PanelWindow {
             batteryProbe.running = true
             extrasProbe.running = true
             audioProbe.running = true
-            wifiPanel.refresh()
-            btPanel.refresh()
-            batPanel.refresh()
+            if (typeof wifiPanel !== "undefined" && wifiPanel.refresh) wifiPanel.refresh()
+            if (typeof btPanel !== "undefined" && btPanel.refresh) btPanel.refresh()
+            if (typeof batPanel !== "undefined" && batPanel.refresh) batPanel.refresh()
         }
     }
-
-    function syncNow() { resync.restart() }
 
     function setAudioSink(sinkName: string) {
         run(["pactl", "set-default-sink", sinkName])
@@ -890,13 +906,11 @@ PanelWindow {
         resync.restart()
     }
     function toggleNightLight() {
-    nightLightOn = !nightLightOn
-    // Если свет включается — запускаем wlsunset в фоне через nohup (подставьте свои координаты вместо -l 52.0 -L 47.8)
-    // Если выключается — убиваем процесс wlsunset
-    run(["sh", "-c", nightLightOn 
-        ? "nohup wlsunset -l 52.0 -L 47.8 -t 4500 >/dev/null 2>&1 &" 
-        : "pkill -x wlsunset 2>/dev/null"])
-    resync.restart()
+        nightLightOn = !nightLightOn
+        run(["sh", "-c", nightLightOn 
+            ? "nohup wlsunset -l 52.0 -L 47.8 -t 4500 >/dev/null 2>&1 &" 
+            : "pkill -x wlsunset 2>/dev/null"])
+        resync.restart()
     }
     function togglePowerSaver() {
         powerSaverOn = !powerSaverOn
@@ -913,90 +927,100 @@ PanelWindow {
         resync.restart()
     }
 
+    // ── Плавающая панель справа сверху ───────────────────
+    // Dismiss when clicking outside the floating card. The card is stacked above this catcher.
     MouseArea {
+        id: outsideClickArea
         anchors.fill: parent
+        enabled: cc.open
         onClicked: cc.close()
     }
 
     Item {
         id: frame
-        anchors { top: parent.top; right: parent.right }
-        anchors.margins: 8
-
-        // Free mouse-resizable Control Center. No edit mode or keyboard modifier needed.
-        property real panelWidth: 420
-        property real panelHeight: Math.min(600, Screen.height - 16)
-        readonly property real minPanelWidth: 320
-        readonly property real maxPanelWidth: Math.max(minPanelWidth, Screen.width - 24)
-        readonly property real minPanelHeight: 360
-        readonly property real maxPanelHeight: Math.max(minPanelHeight, parent.height - 16)
-
-        width: Math.min(panelWidth, Math.max(minPanelWidth, parent.width - 16))
-        height: Math.min(panelHeight, Math.max(minPanelHeight, parent.height - 16))
+        anchors {
+            top: parent.top
+            right: parent.right
+            topMargin: 42
+            rightMargin: 12
+        }
+        width: Math.min(460, parent.width - 24)
+        height: Math.min(640, parent.height - 60)
 
         MouseArea { anchors.fill: parent; onClicked: {} }
-
-        // Invisible bottom-left resize zone: no visible grip/button.
-        // Hovering this corner changes the cursor; drag to resize freely.
-        MouseArea {
-            id: resizeGripMouse
-            width: 24
-            height: 24
-            anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            z: 100
-            hoverEnabled: true
-            cursorShape: Qt.SizeBDiagCursor
-            acceptedButtons: Qt.LeftButton
-
-            property real startWidth: 0
-            property real startHeight: 0
-            property real startX: 0
-            property real startY: 0
-
-            onPressed: function(mouse) {
-                startWidth = frame.panelWidth
-                startHeight = frame.panelHeight
-                startX = mouse.x
-                startY = mouse.y
-            }
-
-            onPositionChanged: function(mouse) {
-                if (!pressed) return
-                // Bottom-left corner: dragging left grows width; dragging down grows height.
-                const dx = mouse.x - startX
-                const dy = mouse.y - startY
-                frame.panelWidth = Math.max(
-                    frame.minPanelWidth,
-                    Math.min(frame.maxPanelWidth, startWidth - dx)
-                )
-                frame.panelHeight = Math.max(
-                    frame.minPanelHeight,
-                    Math.min(frame.maxPanelHeight, startHeight + dy)
-                )
-            }
-        }
 
         Item {
             id: content
             anchors.fill: parent
-            clip: true
-            transformOrigin: Item.BottomRight
-            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+            ParallelAnimation {
+                id: slideIn
+                NumberAnimation { 
+                    target: content
+                    property: "y"
+                    from: -frame.height
+                    to: 0
+                    duration: 300
+                    easing.type: Easing.OutCubic 
+                }
+                NumberAnimation { 
+                    target: content
+                    property: "opacity"
+                    from: 0
+                    to: 1
+                    duration: 200 
+                }
+            }
+
+            ParallelAnimation {
+                id: slideOut
+                NumberAnimation { 
+                    target: content
+                    property: "y"
+                    to: -frame.height
+                    duration: 250
+                    easing.type: Easing.InCubic 
+                }
+                NumberAnimation { 
+                    target: content
+                    property: "opacity"
+                    to: 0
+                    duration: 200 
+                }
+            }
+
+            Rectangle { 
+                anchors.fill: parent
+                anchors.margins: -6
+                radius: 34
+                color: "#000000"
+                opacity: 0.3
+            }
 
             Rectangle {
                 anchors.fill: parent
-                radius: 28
-                color: Qt.rgba(cc.cSurface.r, cc.cSurface.g, cc.cSurface.b, 0.96)
-                border.color: Qt.rgba(cc.cOutline.r, cc.cOutline.g, cc.cOutline.b, 0.08)
+                radius: 32
+                color: Qt.rgba(cc.cSurface.r, cc.cSurface.g, cc.cSurface.b, 0.94)
+                border.color: Qt.rgba(cc.cOutline.r, cc.cOutline.g, cc.cOutline.b, 0.15)
                 border.width: 1
             }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.topMargin: 12
+                anchors.bottomMargin: 20
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 12
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 36
+                    height: 4
+                    radius: 2
+                    color: cc.cOutline
+                    opacity: 0.6
+                }
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -1213,12 +1237,9 @@ PanelWindow {
                                     border.color: cc.cPrimary
                                 }
 
-                                // In edit mode the whole tile is the drag surface.
-                                // The right edge remains reserved for resizing.
                                 MouseArea {
                                     id: tileDragArea
                                     anchors.fill: parent
-                                    anchors.rightMargin: 18
                                     visible: cc.editMode
                                     enabled: cc.editMode
                                     z: 25
@@ -1254,41 +1275,43 @@ PanelWindow {
 
                                 MouseArea {
                                     id: resizeEdge
-                                    visible: cc.editMode && cc.selectedTileKey === tileDelegate.tileKey
+                                    // Invisible bottom-right resize handle; no arrow/button is drawn.
+                                    visible: cc.editMode
                                     enabled: visible
-                                    anchors.top: parent.top
-                                    anchors.bottom: parent.bottom
                                     anchors.right: parent.right
-                                    width: 18
-                                    z: 30
+                                    anchors.bottom: parent.bottom
+                                    width: 30
+                                    height: 30
+                                    z: 60
                                     hoverEnabled: true
-                                    cursorShape: Qt.SizeHorCursor
+                                    cursorShape: Qt.SizeFDiagCursor
                                     property real resizeStartX: 0
                                     property int resizeStartSpanLocal: 1
 
                                     onPressed: function(mouse) {
-                                        resizeStartX = mouse.x
+                                        cc.selectedTileKey = tileDelegate.tileKey
+                                        resizeStartX = resizeEdge.mapToItem(cc, mouse.x, mouse.y).x
                                         resizeStartSpanLocal = tileDelegate.span
                                     }
 
                                     onPositionChanged: function(mouse) {
                                         if (!pressed) return
-                                        tileDelegate.dragResizeSpan = cc.resizeTileFromDrag(
+                                        const currentX = resizeEdge.mapToItem(cc, mouse.x, mouse.y).x
+                                        cc.resizeTileFromDrag(
                                             tileDelegate.tileKey,
                                             resizeStartSpanLocal,
-                                            mouse.x - resizeStartX
+                                            currentX - resizeStartX
                                         )
                                     }
 
                                     onReleased: cc.saveTileLayout()
+                                    onCanceled: cc.saveTileLayout()
                                 }
 
                                 Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                             }
                         }
                     }
-
-                    
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -1372,7 +1395,6 @@ PanelWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 24
-                        Layout.rightMargin: 44
 
                         Text {
                             visible: cc.editMode

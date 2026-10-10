@@ -10,9 +10,9 @@ import "../core" as Matugen
 PanelWindow {
     id: dock
 
-    WlrLayershell.layer: WlrLayershell.Layer.Top
+    WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "dock"
-    WlrLayershell.exclusiveZone: 18
+    exclusiveZone: 18
     WlrLayershell.keyboardFocus: contextMenu.opened
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
@@ -25,7 +25,7 @@ PanelWindow {
     }
 
     // Extra transparent headroom keeps app labels/tooltips fully inside the layer.
-    height: 118
+    implicitHeight: 118
     implicitWidth: Math.max(220, dockContent.implicitWidth + 42)
     color: "transparent"
 
@@ -183,7 +183,7 @@ PanelWindow {
         if (!dock.isHovered || (!triggerArea.containsMouse && !dockHoverHandler.hovered))
             return 1.0
 
-        const center = item.mapToItem(dock, item.width / 2, 0).x
+        const center = item.mapToItem(dockContent, item.width / 2, 0).x
         const distance = Math.abs(dockHoverMouse.mouseX - center)
 
         if (distance < 28)
@@ -438,10 +438,10 @@ PanelWindow {
                             // the first icon can push half of a wide tooltip outside
                             // the layer window and the beginning of the text gets cut.
                             x: {
-                                const p = appItem.mapToItem(dock, 0, 0)
+                                const p = appItem.mapToItem(dockContent, 0, 0)
                                 const desired = appItem.width / 2 - width / 2
                                 const minX = 8 - p.x
-                                const maxX = dock.width - width - 8 - p.x
+                                const maxX = dockContent.width - width - 8 - p.x
                                 return Math.max(minX, Math.min(desired, maxX))
                             }
 
