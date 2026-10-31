@@ -40,14 +40,25 @@ https://github.com/user-attachments/assets/ec09c69b-4eae-4e5d-9bb1-feb3992332b3
 * Linux with a working Wayland session
 * Hyprland
 * Quickshell
-* Hyprqt6engine
-* Hyprpm (optional)
 * Darkman
-* Hyprpicker
-* Hyprland-qt-support
 * TTF Material Symbols Variable (git version)
 * Hypridle
 * Wlsunset
+* Matugen
+* Dunst
+
+### Optional Requirements
+
+* Hyprpm 
+* Neovim
+* Bash (default)
+* Hyprpicker
+* Hypridle
+* Hyprland-qt-support
+* Wezterm
+* Starship
+* Hyprqt6engine
+
 
 ### Setup
 
@@ -70,7 +81,7 @@ https://github.com/user-attachments/assets/ec09c69b-4eae-4e5d-9bb1-feb3992332b3
     ln -sfn (pwd)/.local/share/darkman "HOME/.local/share/darkman"
     ```
  
-4. Install plugins:
+4. Install plugins (Optional):
    
     ```bash
     hyprpm update
@@ -89,14 +100,22 @@ https://github.com/user-attachments/assets/ec09c69b-4eae-4e5d-9bb1-feb3992332b3
     hyprpm enable hypr-kinetic-scroll
     ```
 
+<small>🛈 At the moment, not all of the listed plugins support Hyprland 0.57.</small>
+
    Or open your config (~/.config/hypr/hyprland.lua) and comment this line:
-    ```lua
+```lua
     -- require("modules.plugins")
     ```
 
-5. Review the configuration files and adjust paths, commands, and system-specific settings.
+5. Generate theme:
 
-6. Relogin in your new system!
+```bash
+    darkman toggle
+    ```
+
+6. Review the configuration files and adjust paths, commands, and system-specific settings.
+
+7. Relogin in your new system!
 
 ## Update
 
