@@ -51,12 +51,12 @@ ShellRoot {
         model: Quickshell.screens
 
         // Вызываем TopBar напрямую как окно. Никаких PanelWindow-оберток и anchors.fill!
-        TopBar {
-            required property var modelData
-            screen: modelData // Передаем экран в окно TopBar
-
-            notificationPanel: notifCalendar
-        }
+TopBar {
+    required property var modelData
+    screen: modelData
+    notificationPanel: notifCalendar
+    color: "transparent" // <--- ДОБАВИТЬ ВОТ ЭТУ СТРОКУ
+}
     }
 
     // ========================================================
@@ -81,21 +81,36 @@ ShellRoot {
         id: binds
         onOpenChanged: {
             if (open) {
+                cliphistWidget.close()
                 appDrawer.close()
                 controlCenter.close()
                 notifCalendar.close()
+                runMenu.close()
             }
         }
     }
-    Cliphist { id: cliphistWidget }
+    Cliphist {
+        id: cliphistWidget
+        onOpenChanged: {
+            if (open) {
+                appDrawer.close()
+                controlCenter.close()
+                notifCalendar.close()
+                binds.close()
+                runMenu.close()
+            }
+        }
+    }
 
     Launcher {
         id: appDrawer
         onOpenChanged: {
             if (open) {
+                cliphistWidget.close()
                 controlCenter.close()
                 notifCalendar.close()
                 binds.close()
+                runMenu.close()
             }
         }
     }
@@ -104,9 +119,11 @@ ShellRoot {
         id: controlCenter
         onOpenChanged: {
             if (open) {
+                cliphistWidget.close()
                 appDrawer.close()
                 notifCalendar.close()
                 binds.close()
+                runMenu.close()
             }
         }
     }
@@ -115,8 +132,23 @@ ShellRoot {
         id: notifCalendar
         onOpenChanged: {
             if (open) {
+                cliphistWidget.close()
                 appDrawer.close()
                 controlCenter.close()
+                binds.close()
+                runMenu.close()
+            }
+        }
+    }
+
+    Run {
+        id: runMenu
+        onOpenChanged: {
+            if (open) {
+                cliphistWidget.close()
+                appDrawer.close()
+                controlCenter.close()
+                notifCalendar.close()
                 binds.close()
             }
         }
@@ -126,6 +158,14 @@ ShellRoot {
     // ЭКРАН БЛОКИРОВКИ
     // ========================================================
     property bool isSessionLocked: false
+
+IpcHandler {
+    target: "lockscreen"
+
+    function lock() {
+        root.isSessionLocked = true
+    }
+}
 
     LockContext {
         id: lockContext

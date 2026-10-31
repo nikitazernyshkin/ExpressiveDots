@@ -56,6 +56,7 @@ PanelWindow {
             if (section === "bluetooth" && typeof btPanel !== "undefined" && btPanel.refresh) btPanel.refresh()
             if (section === "battery" && typeof batPanel !== "undefined" && batPanel.refresh) batPanel.refresh()
             if (section === "audio") audioProbe.running = true
+            if (section === "brightness") brightnessDevicesProbe.running = true
         })
     }
 
@@ -153,7 +154,10 @@ PanelWindow {
         saveTileLayout()
     }
 
-    Component.onCompleted: loadTileLayout()
+    Component.onCompleted: {
+        loadTileLayout()
+        brightnessDevicesProbe.running = true
+    }
 
     function tileIndex(key: string): int {
         for (let i = 0; i < tileModel.count; ++i)
@@ -316,6 +320,9 @@ PanelWindow {
     property bool hypridleOn: false
     property int brightness: 50
     property real volume: 0.5
+    property string brightnessDevice: ""
+    property string brightnessDeviceType: "backlight"
+    property var brightnessDevices: []
 
     property var audioSinks: []
     property string defaultSink: ""
@@ -327,7 +334,7 @@ PanelWindow {
     property string mediaArtist: ""
 
     readonly property color cPrimary: typeof Colors !== "undefined" && Colors.primary ? Colors.primary : "#D0BCFF"
-    readonly property color cOnPrimary: typeof Colors !== "undefined" && Colors.onPrimary ? Colors.onPrimary : "#381E72"
+    readonly property color cOnPrimary: typeof Colors !== "undefined" && Colors.primaryText ? Colors.primaryText : cOnSurface
     readonly property color cSurface: typeof Colors !== "undefined" && Colors.surface ? Colors.surface : "#1C1B1F"
     readonly property color cBackground: typeof Colors !== "undefined" && Colors.background ? Colors.background : cSurface
     readonly property color cOnSurface: typeof Colors !== "undefined" && Colors.surfaceText ? Colors.surfaceText : "#E6E1E5"
@@ -589,13 +596,18 @@ PanelWindow {
         implicitHeight: 36
         clip: false
 
-        readonly property real rawPosition: Math.max(0, Math.min(width, width * value))
+        readonly property real clampedValue: Math.max(0, Math.min(1, value))
+        // Reserve the trailing icon area so the fill/divider never runs underneath it.
+        readonly property real iconAreaWidth: 40
+        readonly property real trackWidth: Math.max(0, width - iconAreaWidth)
+        readonly property real rawPosition: Math.max(0, Math.min(trackWidth, trackWidth * clampedValue))
 
         Rectangle {
             id: bgTrack
             anchors.fill: parent
             radius: height / 2
             color: cc.cSurfaceContainerHigh
+            clip: true
 
             Rectangle {
                 anchors.left: parent.left
@@ -611,7 +623,7 @@ PanelWindow {
                     anchors.bottom: parent.bottom
                     width: parent.radius
                     color: cc.cPrimary
-                    visible: sliderRoot.rawPosition > parent.radius && sliderRoot.rawPosition < sliderRoot.width - parent.radius
+                    visible: sliderRoot.rawPosition > parent.radius
                 }
             }
 
@@ -626,19 +638,19 @@ PanelWindow {
                 font.family: cc.iconFont
                 font.pixelSize: 18
                 font.weight: Font.Medium
-                color: cc.cOnSurface 
+                color: cc.cOnSurface
                 z: 30
             }
         }
 
         Rectangle {
             id: dividerLine
-            width: 4 
-            height: parent.height + 8 
+            width: 4
+            height: parent.height + 8
             radius: 2
             anchors.verticalCenter: parent.verticalCenter
-            x: Math.max(0, Math.min(sliderRoot.width - width, sliderRoot.rawPosition - width / 2))
-            color: cc.cPrimary 
+            x: Math.max(0, Math.min(sliderRoot.trackWidth - width / 2, sliderRoot.rawPosition - width / 2))
+            color: cc.cPrimary
             z: 40
         }
 
@@ -648,21 +660,22 @@ PanelWindow {
             cursorShape: Qt.PointingHandCursor
 
             function setFromX(px) {
-                const newValue = Math.max(0, Math.min(1, px / Math.max(1, sliderRoot.width)))
+                const newValue = Math.max(0, Math.min(1, px / Math.max(1, sliderRoot.trackWidth)))
                 sliderRoot.value = newValue
                 sliderRoot.moved(newValue)
             }
 
             onPressed: function(mouse) {
-                if (sliderRoot.clickableIcon && mouse.x > sliderRoot.width - 40)
-                    sliderRoot.iconClicked()
-                else
+                if (mouse.x >= sliderRoot.trackWidth) {
+                    if (sliderRoot.clickableIcon) sliderRoot.iconClicked()
+                } else {
                     setFromX(mouse.x)
+                }
             }
 
             onPositionChanged: function(mouse) {
                 if (!pressed) return
-                if (sliderRoot.clickableIcon && mouse.x > sliderRoot.width - 40) return
+                if (mouse.x >= sliderRoot.trackWidth) return
                 setFromX(mouse.x)
             }
         }
@@ -746,7 +759,7 @@ PanelWindow {
                     if (k === "NL") cc.nightLightOn = v === "1"
                     if (k === "PS") cc.powerSaverOn = v === "1"
                     if (k === "DK") cc.darkOn = v === "1"
-                    if (k === "BR") cc.brightness = parseInt(v, 10) || 50
+                    if (k === "BR" && !cc.brightnessDevice) cc.brightness = parseInt(v, 10) || 50
                     if (k === "VOL") cc.volume = parseFloat(v) || 0.5
                     if (k === "DND") cc.dndOn = v === "1"
                     if (k === "HDI") cc.hypridleOn = v === "1"
@@ -832,20 +845,79 @@ PanelWindow {
     Timer { interval: 5000; running: true; repeat: true; onTriggered: btProbe.running = true }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: batteryProbe.running = true }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: extrasProbe.running = true }
+    Timer { interval: 30000; running: true; repeat: true; onTriggered: brightnessDevicesProbe.running = true }
     Timer { interval: 1000; running: true; repeat: true; onTriggered: mediaProbe.running = true }
 
     Process { id: cmd }
     function run(c: var) { cmd.command = c; cmd.running = true }
 
+    Process {
+        id: brightnessDevicesProbe
+        command: ["sh", "-c",
+            "for p in /sys/class/backlight/*; do [ -e \"$p/brightness\" ] || continue; n=$(basename \"$p\"); printf 'backlight|%s|%s\\n' \"$n\" \"$n\"; done; " +
+            "if command -v ddcutil >/dev/null 2>&1; then ddcutil detect --brief 2>/dev/null | awk '/^Display [0-9]+/ {d=$2} /DRM connector:/ {c=$3; if (d != \"\") {printf \"ddc|%s|%s\\n\", d, c; d=\"\"}}'; fi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const found = []
+                for (const line of text.trim().split("\n")) {
+                    const parts = line.trim().split("|")
+                    if (parts.length < 3 || !parts[1]) continue
+                    found.push({ type: parts[0], id: parts[1], label: parts[2], key: parts[0] + ":" + parts[1] })
+                }
+                cc.brightnessDevices = found
+                if (found.length > 0 && !found.some(d => d.key === cc.brightnessDevice)) {
+                    cc.brightnessDevice = found[0].key
+                    cc.brightnessDeviceType = found[0].type
+                    cc.readBrightnessDevice()
+                }
+            }
+        }
+    }
+
     Process { id: liveBrightness }
     Process { id: liveVolume }
+    Process {
+        id: brightnessRead
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parsed = parseInt(text.trim(), 10)
+                if (!isNaN(parsed)) cc.brightness = Math.max(10, Math.min(100, parsed))
+            }
+        }
+    }
+
+    function readBrightnessDevice() {
+        if (!cc.brightnessDevice) return
+        const bits = cc.brightnessDevice.split(":")
+        if (bits.length < 2) return
+        cc.brightnessDeviceType = bits[0]
+        if (bits[0] === "backlight") {
+            brightnessRead.command = ["sh", "-c", "brightnessctl -d " + bits[1].replace(/[^A-Za-z0-9_.-]/g, "") + " -m 2>/dev/null | awk -F, '{print $5}' | tr -d '%'"]
+        } else {
+            brightnessRead.command = ["sh", "-c", "ddcutil getvcp 10 --display " + (parseInt(bits[1], 10) || 1) + " --brief 2>/dev/null | awk '{n=0; for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/) a[++n]=$i} END{if(n>=2) print a[n-1]}'"]
+        }
+        brightnessRead.running = true
+    }
 
     function applyBrightnessLive(percent: int) {
-        const safeBrightness = Math.max(1, Math.min(100, percent))
-        if (liveBrightness.running) liveBrightness.running = false
-        liveBrightness.command = ["brightnessctl", "set", safeBrightness + "%"]
+        const safeBrightness = Math.max(10, Math.min(100, percent))
+        if (!cc.brightnessDevice) {
+            if (liveBrightness.running) liveBrightness.running = false
+            liveBrightness.command = ["brightnessctl", "set", safeBrightness + "%"]
+        } else {
+            const bits = cc.brightnessDevice.split(":")
+            if (bits[0] === "ddc") {
+                if (liveBrightness.running) liveBrightness.running = false
+                liveBrightness.command = ["ddcutil", "setvcp", "10", String(safeBrightness), "--display", String(parseInt(bits[1], 10) || 1), "--noverify"]
+            } else {
+                const device = (bits[1] || "").replace(/[^A-Za-z0-9_.-]/g, "")
+                if (liveBrightness.running) liveBrightness.running = false
+                liveBrightness.command = ["brightnessctl", "-d", device, "set", safeBrightness + "%"]
+            }
+        }
         liveBrightness.running = true
     }
+
 
     function applyVolumeLive(value: real) {
         const safeVolume = Math.max(0, Math.min(1.0, value))
@@ -1072,6 +1144,7 @@ PanelWindow {
                                     if (cc.view === "bluetooth") return "Bluetooth"
                                     if (cc.view === "battery") return "Батарея"
                                     if (cc.view === "audio") return "Устройства звука"
+                                    if (cc.view === "brightness") return "Яркость экранов"
                                     if (cc.view === "power") return "Питание"
                                 }
                                 return Qt.formatDateTime(new Date(), "H:mm")
@@ -1176,8 +1249,9 @@ PanelWindow {
                         value: Math.max(0.1, cc.brightness / 100)
                         icon: "brightness"
                         clickableIcon: true
+                        onIconClicked: cc.show("brightness")
                         onMoved: function(v) {
-                            const clampedValue = Math.max(0.01, v)
+                            const clampedValue = Math.max(0.10, v)
                             cc.brightness = Math.round(clampedValue * 100)
                             cc.applyBrightnessLive(cc.brightness)
                         }
@@ -1483,6 +1557,98 @@ PanelWindow {
                     visible: cc.view === "battery"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                }
+
+                ColumnLayout {
+                    visible: cc.view === "brightness"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 10
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Выберите экран или устройство подсветки. Для внешних мониторов нужен ddcutil и поддержка DDC/CI."
+                        wrapMode: Text.WordWrap
+                        color: cc.cOnSurfaceVariant
+                        font.pixelSize: 12
+                    }
+
+                    ScrollView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 8
+                            Repeater {
+                                model: cc.brightnessDevices
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 58
+                                    radius: 18
+                                    readonly property bool selected: modelData.key === cc.brightnessDevice
+                                    color: selected ? cc.cPrimary : (deviceMouse.containsMouse ? cc.cSurfaceContainerHigh : cc.cSurfaceContainer)
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 12
+                                        Rectangle {
+                                            Layout.preferredWidth: 34
+                                            Layout.preferredHeight: 34
+                                            radius: 12
+                                            color: selected ? Qt.rgba(cc.cOnPrimary.r, cc.cOnPrimary.g, cc.cOnPrimary.b, 0.15) : Qt.rgba(cc.cPrimary.r, cc.cPrimary.g, cc.cPrimary.b, 0.15)
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.type === "ddc" ? "\ue30a" : "\ue1ff"
+                                                font.family: cc.iconFont
+                                                font.pixelSize: 20
+                                                color: selected ? cc.cOnPrimary : cc.cPrimary
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text { text: modelData.label; color: selected ? cc.cOnPrimary : cc.cOnSurface; font.pixelSize: 13; font.weight: Font.Medium; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            Text { text: modelData.type === "ddc" ? "Внешний монитор · DDC/CI" : "Системная подсветка"; color: selected ? cc.cOnPrimary : cc.cOnSurfaceVariant; font.pixelSize: 11 }
+                                        }
+                                        Text { visible: selected; text: "✓"; color: cc.cOnPrimary; font.pixelSize: 18 }
+                                    }
+                                    MouseArea {
+                                        id: deviceMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { cc.brightnessDevice = modelData.key; cc.readBrightnessDevice() }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Яркость"; color: cc.cOnSurface; font.pixelSize: 14; font.weight: Font.Medium }
+                        Item { Layout.fillWidth: true }
+                        Text { text: cc.brightness + "%"; color: cc.cOnSurfaceVariant; font.pixelSize: 13 }
+                    }
+                    QSSlider {
+                        Layout.fillWidth: true
+                        value: Math.max(0.1, cc.brightness / 100)
+                        icon: "brightness"
+                        onMoved: function(v) {
+                            cc.brightness = Math.max(10, Math.min(100, Math.round(v * 100)))
+                            cc.applyBrightnessLive(cc.brightness)
+                        }
+                    }
+                    Text {
+                        visible: cc.brightnessDevices.length === 0
+                        Layout.fillWidth: true
+                        text: "Устройства не найдены. Для встроенного экрана проверьте /sys/class/backlight; для внешнего установите ddcutil и включите DDC/CI в меню монитора."
+                        wrapMode: Text.WordWrap
+                        color: cc.cOnSurfaceVariant
+                        font.pixelSize: 12
+                    }
                 }
 
                 ScrollView {

@@ -21,10 +21,6 @@ output_path = '~/.config/hypr/modules/colors.lua'
 input_path = "~/.config/matugen/templates/quickshell.qml"
 output_path = "~/.config/hypr/quickshell/core/Colors.qml"
 
-[templates.qt5ct]
-input_path = '~/.config/matugen/templates/qt.conf'
-output_path = '~/.config/qt5ct/colors/matugen.conf'
-
 [templates.qt6]
 input_path = '~/.config/matugen/templates/qt6.colors'
 output_path = '~/.local/share/color-schemes/matugen.colors'
@@ -42,10 +38,6 @@ output_path = "~/.config/dunst/dunstrc"
 input_path = "~/.config/matugen/templates/starship.toml"
 output_path = "~/.config/starship.toml"
 
-[templates.xplr]
-input_path = "~/.config/matugen/templates/xplr.lua"
-output_path = "~/.config/xplr/theme.lua"
-
-[templates.yazi]
-input_path = '~/.config/matugen/templates/yazi.toml'
-output_path = '~/.config/yazi/theme.toml'
+[templates.hyprtoolkit]
+input_path = '~/.config/matugen/templates/hyprtoolkit.conf'
+output_path = '~/.config/hypr/hyprtoolkit.conf'

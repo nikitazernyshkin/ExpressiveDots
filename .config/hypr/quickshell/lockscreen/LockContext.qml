@@ -15,7 +15,7 @@ Scope {
     onCurrentTextChanged: showFailure = false
 
     function tryUnlock() {
-        if (currentText === "") return;
+        if (currentText === "" || unlockInProgress) return;
         root.unlockInProgress = true;
         pam.start();
     }

@@ -2,15 +2,20 @@ package.path           = package.path .. ";~/.config/hypr/?.lua"
 
 _G.home                = "/home/nick/"
 _G.terminal            = "wezterm"
-_G.fileManager         = "explr"
+_G.fileManager         = "hyprfm"
 _G.menu                = "qs -p ~/.config/hypr/quickshell/shell.qml ipc call launcher toggle"
 _G.mainMod             = "SUPER"
 local success, matugen = pcall(require, "modules.colors")
 _G.theme               = (success and matugen and matugen.theme) or {}
 
 hl.permission("/usr/(bin|local/bin)/hyprpm", "plugin", "allow")
+hl.permission("/usr/(bin|local/bin)/grim", "screencopy", "allow")
+hl.permission("/usr/(lib|libexec|lib64)/xdg-desktop-portal-hyprland", "screencopy", "allow")
 
 hl.config({
+    ecosystem = {
+        enforce_permissions = true
+    },
     general = {
         gaps_in       = 5,
         gaps_out      = 15,
@@ -24,10 +29,16 @@ hl.config({
     },
     xwayland = {
         enabled = true
-    }
+    },
+    animations = {
+        enabled = true
+    },
+    render = {
+        use_shader_blur_blend = true
+    },
 })
 
--- Подключаем строго по одному разу!
+require("modules.env")
 require("plugins.hyprsplit")
 require("modules.autostart")
 require("modules.binds")

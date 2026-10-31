@@ -81,7 +81,7 @@ PanelWindow {
 
     implicitHeight: dp(34)
     focusable: false
-    color: "#01ffffff" 
+    color: "transparent"
 
     property string home: "/home/nick/"
     property int wifiSignal: -1
@@ -471,10 +471,8 @@ PanelWindow {
 
             renamePopup.workspaceId = id
             renameInput.text = currentName
-            renamePopup.x = Math.max(
-                panel.dp(6),
-                Math.min(anchorX, panel.width - renamePopup.width - panel.dp(6))
-            )
+            // Center the Popup.Window in the panel overlay, not above the clicked workspace.
+            renamePopup.x = Math.max(panel.dp(6), (panel.width - renamePopup.width) / 2)
             renamePopup.y = panel.implicitHeight + panel.dp(4)
             renamePopup.open()
         }

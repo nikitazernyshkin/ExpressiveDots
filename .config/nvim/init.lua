@@ -7,6 +7,7 @@ local opt = vim.opt
 opt.number = true
 opt.relativenumber = true
 opt.incsearch = true
+opt.guicursor = "a:ver25"
 opt.hlsearch = true
 opt.mouse = "a"
 opt.ignorecase = true
@@ -45,6 +46,104 @@ require("lazy").setup({
         'windwp/nvim-autopairs',
         event = "InsertEnter",
         config = true
+    },
+
+    {
+        "windwp/nvim-ts-autotag",
+        dependencies = { "nvim-treesitter/nvim-treesitter" },
+        config = function()
+            require("nvim-ts-autotag").setup({
+                opts = {
+                    enable_close = true,          -- Автозакрытие при вводе '>'
+                    enable_close_on_slash = true, -- Автозакрытие при вводе '/'
+                    enable_rename = true,         -- Синхронное переименование тегов
+                },
+            })
+        end,
+    },
+    {
+        "sphamba/smear-cursor.nvim",
+        event = "VeryLazy",
+        opts = {
+            -- НАСТРОЙКИ ДЛЯ МАКСИМАЛЬНОЙ ПЛАВНОСТИ:
+            stiffness = 0.4,          -- Медленный, вальяжный старт головы курсора
+            trailing_stiffness = 0.1, -- Хвост растягивается очень далеко и мягко тает
+            damping = 0.25,           -- Повышенное гашение, чтобы курсор не трясся, а плавно "прилипал" к месту
+
+            -- Визуальное сглаживание:
+            legacy_computing_symbols_support = true, -- Сглаживает углы шлейфа с помощью вашего Nerd Font шрифта
+            min_opacity = 0.05,                      -- Хвост будет плавно угасать почти до полной прозрачности
+
+            -- Где работает:
+            smear_between_buffers = true,
+            smear_between_neighbor_lines = true,
+            smear_insert_mode = true, -- Оставляем в режиме вставки для плавности при печати
+
+            -- Совместимость с WezTerm:
+            hide_target_hack = true,
+            filetypes_disabled = { "neo-tree", "toggleterm" },
+        },
+    },
+    --[[{
+        "NeogitOrg/neogit",
+        dependencies = {
+            "nvim-lua/plenary.nvim",
+            "sindrets/diffview.nvim",
+            "nvim-telescope/telescope.nvim",
+        },
+        keys = {
+            { "<leader>g", "<cmd>Neogit<cr>", desc = "Открыть Neogit" },
+        },
+        config = function()
+            require("neogit").setup({
+                graph_style = "unicode",
+                kind = "floating", -- Открывать в плавающем окне
+                popup = {
+                    kind = "floating",
+                },
+                window = {
+                    border = "rounded",
+                },
+            })
+        end,
+    },]]
+
+    {
+        "brenoprata10/nvim-highlight-colors",
+        event = { "BufReadPre", "BufNewFile" },
+        config = function()
+            require("nvim-highlight-colors").setup({
+                render = "background", -- 'background' подсветит фон текста, 'foreground' — сам текст
+                enable_named_colors = true,
+                enable_tailwind = false,
+            })
+        end,
+    },
+
+    {
+        "akinsho/bufferline.nvim",
+        version = "*",
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+        event = "VeryLazy",
+        config = function()
+            require("bufferline").setup({
+                options = {
+                    mode = "buffers",
+                    separator_style = "thin", -- Стиль разделителей деталей
+                    always_show_bufferline = true,
+                    show_buffer_close_icons = false,
+                    show_close_icon = false,
+                    offsets = {
+                        {
+                            filetype = "neo-tree",
+                            text = "Проводник",
+                            text_align = "center",
+                            separator = true,
+                        },
+                    },
+                },
+            })
+        end,
     },
 
     {
@@ -107,6 +206,7 @@ require("lazy").setup({
     -- Без этого Neovim не поймет синтаксис Kotlin-файлов и разметку Android-экранов
     {
         "nvim-treesitter/nvim-treesitter",
+        event = { "BufReadPost", "BufNewFile" },
         build = ":TSUpdate",
         -- С помощью opts мы безопасно передаем настройки.
         -- Пакетный менеджер сам применит их после того, как скачает плагин.
@@ -238,6 +338,7 @@ require("lazy").setup({
     -- Новое поколение автодополнения (красивое, быстрое, со скругленными меню)
     {
         "saghen/blink.cmp",
+        event = { "InsertEnter", "CmdlineEnter" },
         lazy = false,
         dependencies = "rafamadriz/friendly-snippets",
         version = "v0.*",
@@ -271,6 +372,7 @@ require("lazy").setup({
     -- Единственный актуальный блок LSP (работает в связке с blink.cmp и lazydev)
     {
         "neovim/nvim-lspconfig",
+        event = { "BufReadPre", "BufNewFile" },
         dependencies = {
             "williamboman/mason.nvim",
             "williamboman/mason-lspconfig.nvim",
@@ -483,6 +585,16 @@ require("lazy").setup({
             { "<leader>to", function() require("neotest").summary.toggle() end, desc = "Панель тестов" },
         },
     },
+
+    {
+        'MeanderingProgrammer/render-markdown.nvim',
+        dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.nvim' }, -- if you use the mini.nvim suite
+        -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.icons' },        -- if you use standalone mini plugins
+        -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' }, -- if you prefer nvim-web-devicons
+        ---@module 'render-markdown'
+        ---@type render.md.UserConfig
+        opts = {},
+    }
 
 })
 

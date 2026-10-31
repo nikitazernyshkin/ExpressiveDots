@@ -18,12 +18,8 @@ hs.config({
 })
 
 hs.monitor_priority({ "VGA-1", "LVDS-1" })
--- Цикл для автоматического создания биндов 1..5
 for i = 1, 5 do
-    -- Переключение воркспейса на активном мониторе (SUPER + 1..5)
     hl.bind(mainMod .. "+" .. i, hs.dsp.focus({ workspace = i }))
-
-    -- Перенос окна на воркспейс на активном мониторе (SUPER + SHIFT + 1..5)
     hl.bind(mainMod .. "+SHIFT+" .. i, hs.dsp.window.move({ workspace = i }))
 end
 
@@ -36,11 +32,14 @@ local function toggle_layout()
 end
 
 hl.bind(mainMod .. "+K", hl.dsp.exec_cmd(terminal), { description = "Открыть терминал" })
+hl.bind(mainMod .. "+R", hl.dsp.exec_cmd("qs -p ~/.config/hypr/quickshell/ ipc call run toggle"),
+    { description = "Меню Выполнить" })
 hl.bind(mainMod .. "+E", hl.dsp.exec_cmd(fileManager), { description = "Открыть файловый менеджер" })
 hl.bind(mainMod .. "+SPACE", hl.dsp.exec_cmd(menu), { description = "Открыть меню приложений" })
-hl.bind(mainMod .. "+V", hl.dsp.exec_cmd(home .. ".config/hypr/top/scripts/clipboard.sh"),
+hl.bind(mainMod .. "+V", hl.dsp.exec_cmd("qs -p ~/.config/hypr/quickshell/ ipc call cliphist toggle"),
     { description = "Открыть историю буфера обмена" })
-hl.bind(mainMod .. "+L", hl.dsp.exec_cmd("quickshell ipc call lockscreen lock"), { description = "Заблокировать экран" })
+hl.bind(mainMod .. "+L", hl.dsp.exec_cmd("qs -p ~/.config/hypr/quickshell ipc call lockscreen lock"),
+    { description = "Заблокировать экран" })
 hl.bind(mainMod .. "+SHIFT+C", hl.dsp.exec_cmd("hyprpicker"), { description = "Выбрать цвет с экрана" })
 hl.bind(mainMod .. "+SHIFT+S", hl.plugin.hyprcapture.open, { description = "Сделать снимок экрана" })
 hl.bind(mainMod .. "+SHIFT+R", hl.dsp.exec_cmd("~/.config/hypr/scripts/reload.lua"),
@@ -129,7 +128,7 @@ hl.bind(mainMod .. "+CONTROL+UP", hl.dsp.window.move({ into_or_create_group = "u
     { description = "Переместить окно в группу сверху" })
 hl.bind(mainMod .. "+CONTROL+DOWN", hl.dsp.window.move({ into_or_create_group = "d" }),
     { description = "Переместить окно в группу снизу" })
-hl.bind(mainMod .. "+SLASH", hl.dsp.exec_cmd("qs -p ~/.config/hypr/quickshell/shell.qml ipc call binds toggle"),
+hl.bind(mainMod .. "+SHIFT+SLASH", hl.dsp.exec_cmd("qs -p ~/.config/hypr/quickshell/shell.qml ipc call binds toggle"),
     { description = "Список горячих клавиш" })
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"),
     { repeating = true, locked = true, description = "Увеличить громкость" })

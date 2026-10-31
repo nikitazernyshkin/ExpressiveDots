@@ -278,15 +278,16 @@ PanelWindow {
         anchors { top: parent.top; left: parent.left }
         anchors.leftMargin: 15
 
-        property real panelWidth: 430
-        property real panelHeight: Math.min(690, Screen.height - 60)
-        readonly property real minPanelWidth: 340
-        readonly property real minPanelHeight: 420
-        readonly property real maxPanelWidth: Math.max(minPanelWidth, Screen.width - 30)
-        readonly property real maxPanelHeight: Math.max(minPanelHeight, Screen.height - 60)
+        // Fixed, responsive dimensions; users cannot resize this panel.
+        width: Math.min(430, Math.max(320, Screen.width - 30))
+        height: Math.min(690, Math.max(380, Screen.height - 60))
+        opacity: notifRoot.open ? 1 : 0
+        scale: notifRoot.open ? 1 : 0.965
+        y: notifRoot.open ? 0 : 18
 
-        width: Math.min(panelWidth, maxPanelWidth)
-        height: Math.min(panelHeight, maxPanelHeight)
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutBack; easing.overshoot: 1.04 } }
+        Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -555,41 +556,12 @@ PanelWindow {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             cursorShape: Qt.PointingHandCursor
-                            property real pressX: 0
-                            property bool moved: false
-
-                            onPressed: {
-                                pressX = mouse.x
-                                moved = false
-                            }
-
-                            onPositionChanged: {
-                                if (!(mouse.buttons & Qt.LeftButton)) return
-                                const dx = mouse.x - pressX
-                                if (Math.abs(dx) > 10) moved = true
-                                if (moved)
-                                    notificationDelegate.swipeX = Math.max(
-                                        -parent.width * 0.95,
-                                        Math.min(parent.width * 0.95, dx)
-                                    )
-                            }
-
-                            onReleased: {
-                                if (notificationDelegate.swipeX > parent.width * 0.35 ||
-                                    notificationDelegate.swipeX < -parent.width * 0.35) {
-                                    notifRoot.deleteSingleNotification(modelData)
-                                    notificationDelegate.swipeX = notificationDelegate.swipeX > 0 ? parent.width : -parent.width
-                                } else {
-                                    notificationDelegate.swipeX = 0
-                                }
-                            }
-
                             onClicked: (mouse) => {
                                 if (mouse.button === Qt.RightButton) {
                                     contextMenu.targetNotif = modelData
                                     const globalPos = cardMouse.mapToItem(null, mouse.x, mouse.y)
                                     contextMenu.popup(globalPos.x, globalPos.y)
-                                } else if (!moved) {
+                                } else {
                                     notifRoot.toggleExpanded(modelData)
                                 }
                             }
@@ -598,99 +570,7 @@ PanelWindow {
                 }
             }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 7
-                visible: notifRoot.dismissedList.length > 0
 
-                Text {
-                    text: "Недавно закрытые"
-                    color: notifRoot.cOnSurfaceVariant
-                    font.pixelSize: 11
-                    font.weight: Font.Medium
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 7
-
-                    Repeater {
-                        model: notifRoot.dismissedList.slice(0, 4)
-
-                        delegate: Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 40
-                            radius: 20
-                            color: notifRoot.cSurfaceContainer
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: notifRoot.appName(modelData)
-                                color: notifRoot.cOnSurfaceVariant
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                                width: parent.width - 12
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            id: resizeHandle
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            width: 28
-            height: 28
-            radius: 14
-            color: resizeMouse.containsMouse
-                ? Qt.rgba(notifRoot.cPrimary.r, notifRoot.cPrimary.g, notifRoot.cPrimary.b, 0.16)
-                : Qt.rgba(notifRoot.cOnSurface.r, notifRoot.cOnSurface.g, notifRoot.cOnSurface.b, 0.06)
-
-            Text {
-                anchors.centerIn: parent
-                text: "drag_handle"
-                font.family: notifRoot.iconFont
-                font.pixelSize: 17
-                color: notifRoot.cOnSurfaceVariant
-                rotation: 45
-            }
-
-            MouseArea {
-                id: resizeMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.SizeFDiagCursor
-
-                property real startX
-                property real startY
-                property real startWidth
-                property real startHeight
-
-                onPressed: {
-                    startX = mouse.x + resizeHandle.x
-                    startY = mouse.y + resizeHandle.y
-                    startWidth = frame.width
-                    startHeight = frame.height
-                }
-
-                onPositionChanged: {
-                    if (!(mouse.buttons & Qt.LeftButton)) return
-                    const dx = (resizeHandle.x + mouse.x) - startX
-                    const dy = (resizeHandle.y + mouse.y) - startY
-                    frame.panelWidth = Math.max(
-                        frame.minPanelWidth,
-                        Math.min(frame.maxPanelWidth, startWidth + dx)
-                    )
-                    frame.panelHeight = Math.max(
-                        frame.minPanelHeight,
-                        Math.min(frame.maxPanelHeight, startHeight + dy)
-                    )
-                }
-            }
         }
 
         Rectangle {
@@ -707,7 +587,7 @@ PanelWindow {
     }
 
     Text {
-        visible: open && notificationsList.length === 0 && dismissedList.length === 0
+        visible: open && notificationsList.length === 0
         anchors.left: frame.left
         anchors.top: frame.top
         anchors.leftMargin: 30
@@ -722,7 +602,7 @@ PanelWindow {
     }
 
     Text {
-        visible: open && notificationsList.length === 0 && dismissedList.length === 0
+        visible: open && notificationsList.length === 0
         anchors.left: frame.left
         anchors.top: frame.top
         anchors.leftMargin: 30
@@ -736,7 +616,7 @@ PanelWindow {
     }
 
     Text {
-        visible: open && notificationsList.length === 0 && dismissedList.length === 0
+        visible: open && notificationsList.length === 0
         anchors.left: frame.left
         anchors.top: frame.top
         anchors.leftMargin: 30

@@ -39,13 +39,6 @@ Item {
         return false
     }
 
-    Connections {
-        target: ctl
-        function onWifiSignalChanged() {
-            if (ctl && ctl.wifiSignal >= 0) wifiEnabled = ctl.wifiSignal > 0
-        }
-    }
-
     Process {
         id: wifiScan
         running: true
@@ -171,13 +164,16 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         var newState = !wifiEnabled
-                        if (ctl) {
-                            ctl.wifiSignal = newState ? 60 : -1
-                            ctl.syncNow()
-                        }
+                        // Keep the panel responsive, but let NetworkManager remain the
+                        // source of truth after the command completes.
                         wifiEnabled = newState
-                        wifiCmd.command = ["sh", "-c", "nmcli radio wifi " + (newState ? "on" : "off") + " >/dev/null 2>&1"]
+                        if (!newState) {
+                            root.currentNetwork = ""
+                            root.currentSignal = 0
+                        }
+                        wifiCmd.command = ["nmcli", "radio", "wifi", newState ? "on" : "off"]
                         wifiCmd.running = true
+                        rescanLater.restart()
                     }
                 }
             }

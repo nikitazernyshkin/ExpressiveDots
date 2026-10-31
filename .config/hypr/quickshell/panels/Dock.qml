@@ -12,7 +12,7 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "dock"
-    exclusiveZone: 18
+    exclusiveZone: 30
     WlrLayershell.keyboardFocus: contextMenu.opened
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None

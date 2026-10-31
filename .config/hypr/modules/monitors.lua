@@ -7,7 +7,7 @@ hl.monitor({
 
 hl.monitor({
     output = "VGA-1",
-    mode = "1280x1024@60.02",
+    mode = "1280x1024@75.03",
     position = "-1280x0",
     scale = 1,
 })

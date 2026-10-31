@@ -2,329 +2,328 @@ import "../core"
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import "../widgets"
 import Quickshell
 import Quickshell.Wayland
 
 Rectangle {
     id: root
-    color: Colors.background // Используем цвет фона из темы
+    color: Colors.background
 
     property var context
     property var controlCenter
-    property var passwordShapes: {
-        const shapes = ["●", "◆", "▲", "■", "★", "⬟", "⬡", "⬢"]
-        let result = []
-        for (let i = 0; i < root.context.currentText.length; i++) {
-            result.push(shapes[i % shapes.length])
-        }
-        return result
-    }
-    
     property int screenState: 0
+    focus: true
 
-    // ─ ОБОИ ────────────────────────────────────────────────────────────
+    readonly property color textColor: Colors.backgroundText
+    readonly property color mutedColor: Colors.outline
+    readonly property color glass: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.88)
+    readonly property color glassHigh: Qt.rgba(Colors.surfaceContainerHigh.r, Colors.surfaceContainerHigh.g, Colors.surfaceContainerHigh.b, 0.94)
+
     Image {
         anchors.fill: parent
         source: "file://" + Quickshell.env("HOME") + "/.config/hypr/background.png"
         fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
         z: 0
     }
 
-    // ── ЗАТЕМНЕНИЕ ──────────────────────────────────────────────────────
+    // A soft, even veil keeps the wallpaper visible without compromising readability.
     Rectangle {
         anchors.fill: parent
-        color: Colors.background
-        opacity: 0.5 // Чуть усилили для лучшей читаемости светлых элементов
+        color: "#071011"
+        opacity: 0.48
+        z: 1
+    }
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#30000000" }
+            GradientStop { position: 0.48; color: "#08000000" }
+            GradientStop { position: 1.0; color: "#50000000" }
+        }
         z: 1
     }
 
-    // ─ ВЕРХНЯЯ ПАНЕЛЬ ─────────────────────────────────────────────────
     LockTopBar {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.margins: 8
         z: 10
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // ЭКРАН 1: БОЛЬШИЕ ЧАСЫ
-    // ═══════════════════════════════════════════════════════════════════
-    ColumnLayout {
+    // Reuse the exact desktop clock widget on the lock screen.
+    // Its own date and analog hands stay in sync through widgets/Clock.qml.
+    Column {
+        id: clockScreen
         anchors.centerIn: parent
-        spacing: 16
-        opacity: screenState === 0 ? 1 : 0
-        scale: screenState === 0 ? 1 : 0.9
-        visible: opacity > 0
+        spacing: 18
+        opacity: root.screenState === 0 ? 1 : 0
+        scale: root.screenState === 0 ? 1 : 0.94
+        visible: opacity > 0.01
         z: 5
-        
-        Behavior on opacity { NumberAnimation { duration: 300 } }
-        Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
+        Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
-        Item {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 400
-            Layout.preferredHeight: 160
+        Clock {
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
 
-            Text {
-                id: bigClock
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: hintRow.implicitWidth + 32
+            height: 44
+            radius: 22
+            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.60)
+            border.width: 1
+            border.color: Qt.rgba(Colors.outline.r, Colors.outline.g, Colors.outline.b, 0.16)
+            Row {
+                id: hintRow
                 anchors.centerIn: parent
-                text: Qt.formatDateTime(new Date(), "HH:mm")
-                font.pixelSize: 144
-                font.weight: Font.Thin
-                color: Colors.backgroundText
-                style: Text.Outline
-                styleColor: Qt.rgba(0, 0, 0, 0.6)
-                
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    shadowEnabled: true
-                    shadowColor: "#000000"
-                    shadowHorizontalOffset: 0
-                    shadowVerticalOffset: 4
-                    shadowBlur: 16
-                }
-                
-                Timer {
-                    interval: 1000; running: true; repeat: true
-                    onTriggered: parent.text = Qt.formatDateTime(new Date(), "HH:mm")
-                }
+                spacing: 9
+                Text { text: "\ue897"; font.family: "Material Symbols Rounded"; font.pixelSize: 17; color: Colors.primary; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "Нажмите или Enter, чтобы разблокировать"; font.pixelSize: 12; color: root.textColor; opacity: 0.88; anchors.verticalCenter: parent.verticalCenter }
             }
-        }
-
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatDateTime(new Date(), "dddd, d MMMM")
-            font.pixelSize: 24
-            color: Colors.backgroundText
-            opacity: 0.8
-            style: Text.Outline
-            styleColor: Qt.rgba(0, 0, 0, 0.5)
-        }
-
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: "Нажмите Enter или кликните"
-            font.pixelSize: 14
-            color: Colors.outline
-            opacity: 0.7
-        }
-
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 300
-            focus: true
-            
             MouseArea {
                 anchors.fill: parent
-                onClicked: {
-                    screenState = 1
-                    Qt.callLater(() => passwordInput.forceActiveFocus())
-                }
-            }
-
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    screenState = 1
-                    Qt.callLater(() => passwordInput.forceActiveFocus())
-                }
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: parent.color = Qt.rgba(Colors.surfaceContainerHigh.r, Colors.surfaceContainerHigh.g, Colors.surfaceContainerHigh.b, 0.82)
+                onExited: parent.color = Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.60)
+                onClicked: root.openPassword()
             }
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════
-    // ЭКРАН 2: ВВОД ПАРОЛЯ (Цвета из Colors.qml)
-    // ══════════════════════════════════════════════════════════════════
-    ColumnLayout {
+    // Password view: centered Material 3 Expressive card with a clear focus state.
+    Column {
+        id: passwordScreen
         anchors.centerIn: parent
-        spacing: 24
-        width: parent.width * 0.8
-        Layout.maximumWidth: 500
-        
-        opacity: screenState === 1 ? 1 : 0
-        scale: screenState === 1 ? 1 : 0.9
-        visible: opacity > 0
-        z: 5
-        
-        Behavior on opacity { NumberAnimation { duration: 300 } }
-        Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
+        width: Math.min(parent.width - 36, 430)
+        spacing: 18
+        opacity: root.screenState === 1 ? 1 : 0
+        scale: root.screenState === 1 ? 1 : 0.94
+        visible: opacity > 0.01
+        z: 6
+        Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: "Неверный пароль"
-            font.pixelSize: 14
-            color: Colors.error // Красный/розовый из темы
-            visible: root.context.showFailure
-            opacity: visible ? 1 : 0
+        Rectangle {
+            id: avatarBadge
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 76
+            height: 76
+            radius: 28
+            color: Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.17)
+            border.width: 1
+            border.color: Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.34)
+            Text {
+                anchors.centerIn: parent
+                text: "\ue7fd"
+                font.family: "Material Symbols Rounded"
+                font.pixelSize: 38
+                color: Colors.primary
+            }
         }
 
-        // Поле ввода
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "Добро пожаловать"
+            color: root.textColor
+            font.pixelSize: 28
+            font.weight: Font.Medium
+            font.letterSpacing: -0.5
+        }
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: root.context.unlockInProgress ? "Проверяем пароль…" : "Введите пароль, чтобы продолжить"
+            color: root.mutedColor
+            font.pixelSize: 13
+        }
+
         Rectangle {
-            id: passwordField
-            Layout.preferredWidth: 480
-            Layout.preferredHeight: 64
-            radius: 32
-            
-            // Тёмно-зелёный фон из темы (primaryContainer)
-            color: Colors.primaryContainer 
-            opacity: 0.8 // Лёгкая прозрачность, чтобы слегка просвечивали обои
-            
-            // Рамка меняется с серой (outline) на зелёную (primary) при фокусе
-            border.color: passwordInput.activeFocus ? Colors.primary : Colors.outline
+            id: passwordCard
+            width: parent.width
+            height: 76
+            radius: 28
+            color: passwordInput.activeFocus ? Qt.rgba(Colors.primaryContainer.r, Colors.primaryContainer.g, Colors.primaryContainer.b, 0.86) : root.glassHigh
             border.width: passwordInput.activeFocus ? 2 : 1
+            border.color: root.context.showFailure ? Colors.error : passwordInput.activeFocus ? Colors.primary : Qt.rgba(Colors.outline.r, Colors.outline.g, Colors.outline.b, 0.30)
+            Behavior on color { ColorAnimation { duration: 160 } }
+            Behavior on border.color { ColorAnimation { duration: 160 } }
+            Behavior on border.width { NumberAnimation { duration: 120 } }
 
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: "#000000"
-                shadowHorizontalOffset: 0
-                shadowVerticalOffset: 4
-                shadowBlur: passwordInput.activeFocus ? 20 : 12
-            }
-
-            MouseArea {
+            Row {
                 anchors.fill: parent
-                onClicked: passwordInput.forceActiveFocus()
-            }
+                anchors.leftMargin: 22
+                anchors.rightMargin: 10
+                spacing: 12
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\ue897"
+                    font.family: "Material Symbols Rounded"
+                    font.pixelSize: 23
+                    color: passwordInput.activeFocus ? Colors.primary : Colors.outline
+                }
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 8
-                spacing: 8
-
-                Flickable {
-                    id: flickable
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    contentWidth: passwordRow.width
-                    contentHeight: height
-                    flickableDirection: Flickable.HorizontalFlick
+                Item {
+                    id: passwordTextArea
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 22 - 12 - 54 - 10
+                    height: 42
                     clip: true
-
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.context.currentText.length === 0
+                        text: "Пароль"
+                        font.pixelSize: 15
+                        color: Colors.outline
+                        opacity: 0.9
+                    }
                     Row {
-                        id: passwordRow
-                        height: parent.height
-                        spacing: 8
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Пароль"
-                            font.pixelSize: 16
-                            color: Colors.outline // Серый для неактивного текста
-                            opacity: 0.7
-                            visible: root.context.currentText.length === 0
-                        }
-
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 7
                         Repeater {
-                            model: root.passwordShapes
-                            delegate: Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: modelData
-                                font.pixelSize: 24
-                                // Светло-зелёный текст, идеально виден на тёмно-зелёном фоне
-                                color: Colors.primaryContainerText 
-                                opacity: 1.0
+                            model: root.context.currentText.length
+                            delegate: Rectangle {
+                                required property int index
+                                width: 9; height: 9; radius: 4.5
+                                color: Colors.primaryContainerText
+                                opacity: 0.98
+                                scale: 1
+                                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack } }
                             }
                         }
-
                         Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 2; height: 24
-                            color: Colors.primary // Ярко-зелёный курсор
-                            visible: passwordInput.activeFocus
+                            width: 2; height: 22; radius: 1
+                            color: Colors.primary
+                            visible: passwordInput.activeFocus && !root.context.unlockInProgress
                             SequentialAnimation on opacity {
+                                running: passwordInput.activeFocus
                                 loops: Animation.Infinite
-                                NumberAnimation { to: 0; duration: 500 }
-                                NumberAnimation { to: 1; duration: 500 }
+                                NumberAnimation { to: 0.15; duration: 480 }
+                                NumberAnimation { to: 1; duration: 480 }
                             }
                         }
                     }
                 }
 
-                // Кнопка входа
                 Rectangle {
                     id: submitBtn
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 48
-                    radius: 24
-                    color: Colors.primary // Ярко-зелёная кнопка
-                    opacity: 1.0
-                    scale: submitBtnHover.containsMouse ? 1.1 : (submitBtnHover.pressed ? 0.95 : 1.0)
-                    
-                    layer.enabled: true
-                    layer.effect: MultiEffect {
-                        shadowEnabled: true
-                        shadowColor: "#000000"
-                        shadowHorizontalOffset: 0
-                        shadowVerticalOffset: 2
-                        shadowBlur: 8
-                    }
-
-                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuart } }
-
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 54; height: 54; radius: 20
+                    color: root.context.unlockInProgress ? Colors.surfaceVariant : Colors.primary
+                    opacity: root.context.currentText.length > 0 && !root.context.unlockInProgress ? 1 : 0.68
+                    scale: submitHover.pressed ? 0.94 : submitHover.containsMouse ? 1.04 : 1
+                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                     Text {
                         anchors.centerIn: parent
-                        text: "→"
-                        font.pixelSize: 20
-                        font.weight: Font.Bold
-                        color: Colors.primaryText // Тёмно-зелёная стрелка для контраста
+                        text: root.context.unlockInProgress ? "\ue863" : "\ue5c8"
+                        font.family: "Material Symbols Rounded"
+                        font.pixelSize: 26
+                        color: root.context.unlockInProgress ? Colors.surfaceVariantText : Colors.primaryText
                     }
-
                     MouseArea {
-                        id: submitBtnHover
+                        id: submitHover
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
+                        enabled: root.context.currentText.length > 0 && !root.context.unlockInProgress
                         onClicked: root.context.tryUnlock()
                     }
                 }
             }
-
-            TextInput {
-                id: passwordInput
-                width: 0; height: 0; opacity: 0
-                focus: true
-                echoMode: TextInput.Password
-                enabled: !root.context.unlockInProgress
-                
-                onTextChanged: {
-                    root.context.currentText = text
-                }
-                
-                onAccepted: root.context.tryUnlock()
-                
-                Keys.onEscapePressed: {
-                    screenState = 0
-                    root.context.currentText = ""
-                    passwordInput.text = ""
-                }
+            MouseArea {
+                anchors.fill: parent
+                z: -1
+                onClicked: passwordInput.forceActiveFocus()
             }
         }
 
         Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: root.context.unlockInProgress ? "Проверка..." : "Enter для входа · Esc назад"
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: root.context.showFailure ? "Неверный пароль. Попробуйте ещё раз." : ""
+            visible: root.context.showFailure
+            color: Colors.error
             font.pixelSize: 13
-            color: Colors.backgroundText
-            opacity: 0.7
-            style: Text.Outline
-            styleColor: Qt.rgba(0, 0, 0, 0.5)
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: root.context.unlockInProgress ? "Подождите" : "Enter — подтвердить     ·     Esc — назад"
+            color: root.mutedColor
+            font.pixelSize: 12
+        }
+
+        TextInput {
+            id: passwordInput
+            width: 1
+            height: 1
+            opacity: 0.01
+            color: "transparent"
+            selectionColor: Colors.primary
+            focus: root.screenState === 1
+            echoMode: TextInput.Password
+            enabled: root.screenState === 1 && !root.context.unlockInProgress
+            onTextChanged: {
+                if (root.context.currentText !== text)
+                    root.context.currentText = text
+            }
+            onAccepted: root.context.tryUnlock()
+            Keys.onEscapePressed: root.closePassword()
+        }
+
+        // PAM clears the context text after a failed attempt. Keep the hidden
+        // keyboard input in sync too, otherwise the next attempt appends to the
+        // old password even though the dots have disappeared.
+        Connections {
+            target: root.context
+            function onCurrentTextChanged() {
+                if (passwordInput.text !== root.context.currentText)
+                    passwordInput.text = root.context.currentText
+            }
+            function onUnlockInProgressChanged() {
+                if (!root.context.unlockInProgress && root.screenState === 1)
+                    Qt.callLater(() => passwordInput.forceActiveFocus())
+            }
         }
     }
 
-    Keys.onEscapePressed: {
-        if (screenState === 1) {
-            screenState = 0
-            root.context.currentText = ""
-            passwordInput.text = ""
-        }
+    function openPassword() {
+        screenState = 1
+        Qt.callLater(() => passwordInput.forceActiveFocus())
     }
-    
+    function closePassword() {
+        screenState = 0
+        root.context.currentText = ""
+        passwordInput.text = ""
+        Qt.callLater(() => root.forceActiveFocus())
+    }
+
+    Keys.onEscapePressed: {
+        if (screenState === 1)
+            closePassword()
+    }
+    Component.onCompleted: Qt.callLater(() => root.forceActiveFocus())
     onScreenStateChanged: {
         if (screenState === 1) {
             root.context.currentText = ""
             passwordInput.text = ""
+            Qt.callLater(() => passwordInput.forceActiveFocus())
+        } else {
+            Qt.callLater(() => root.forceActiveFocus())
+        }
+    }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Escape && screenState === 1) {
+            closePassword()
+            event.accepted = true
+        } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && screenState === 0) {
+            openPassword()
+            event.accepted = true
         }
     }
 }
