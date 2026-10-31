@@ -104,14 +104,14 @@ https://github.com/user-attachments/assets/ec09c69b-4eae-4e5d-9bb1-feb3992332b3
 
    Or open your config (~/.config/hypr/hyprland.lua) and comment this line:
    ```lua
-    -- require("modules.plugins")
-    ```
+   -- require("modules.plugins")
+   ```
 
 5. Generate theme:
 
-```bash
-    darkman toggle
-    ```
+   ```bash
+   darkman toggle
+   ```
 
 6. Review the configuration files and adjust paths, commands, and system-specific settings.
 
