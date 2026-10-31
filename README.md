@@ -103,7 +103,7 @@ https://github.com/user-attachments/assets/ec09c69b-4eae-4e5d-9bb1-feb3992332b3
 <small>🛈 At the moment, not all of the listed plugins support Hyprland 0.57.</small>
 
    Or open your config (~/.config/hypr/hyprland.lua) and comment this line:
-```lua
+   ```lua
     -- require("modules.plugins")
     ```
 
